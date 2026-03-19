@@ -400,6 +400,10 @@ function fmtDate(str) {
 }
 
 function fmtDatetime(str) {
-  const d = new Date(str);
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  if (!str) return '';
+  // MySQL retourne "2026-03-19 13:51:00" (espace) invalide pour Safari → remplacer par T
+  const d = new Date(str.replace(' ', 'T'));
+  if (isNaN(d.getTime())) return str;
+  // toLocaleString (pas toLocaleDateString) pour inclure heure+minute sans erreur Safari
+  return d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }

@@ -219,10 +219,10 @@
       <div class="row g-3">
         <div class="col-lg-5">
           <div class="card-dark p-3">
-            <form id="sortieForm" onsubmit="createSortie(event)">
+            <form id="sortieForm" onsubmit="createSortie(event)" novalidate>
               <div class="mb-3">
                 <label class="form-label small">Titre *</label>
-                <input type="text" id="sortieTitre" class="form-control" placeholder="Ex : Tour du Piton" required maxlength="80">
+                <input type="text" id="sortieTitre" class="form-control" placeholder="Ex : Tour du Piton">
               </div>
               <div class="mb-3">
                 <label class="form-label small">Description</label>
@@ -231,7 +231,7 @@
               <div class="row g-2 mb-3">
                 <div class="col-7">
                   <label class="form-label small">Date *</label>
-                  <input type="date" id="sortieDate" class="form-control" required>
+                  <input type="date" id="sortieDate" class="form-control">
                 </div>
                 <div class="col-5">
                   <label class="form-label small">Heure</label>
@@ -303,10 +303,10 @@
         <div class="col-lg-8">
           <div class="card-dark p-4">
             <h6 class="mb-3">Modifier mes informations</h6>
-            <form onsubmit="updateProfile(event)">
+            <form onsubmit="updateProfile(event)" novalidate>
               <div class="mb-3">
                 <label class="form-label small">Pseudo</label>
-                <input type="text" id="profilePseudo" class="form-control" required maxlength="30">
+                <input type="text" id="profilePseudo" class="form-control">
               </div>
               <div class="row g-2 mb-3">
                 <div class="col-7">
@@ -326,7 +326,7 @@
               </div>
               <div class="mb-3">
                 <label class="form-label small">Nouveau mot de passe <span class="text-muted">(laisser vide pour ne pas changer)</span></label>
-                <input type="password" id="profilePassword" class="form-control" placeholder="••••••••" minlength="6">
+                <input type="password" id="profilePassword" class="form-control" placeholder="••••••••">
               </div>
               <div class="alert alert-danger d-none mb-3" id="profileError"></div>
               <div class="alert alert-success d-none mb-3" id="profileSuccess"></div>
