@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0d0d0d">
+  <title>Zot Ride – Radar Live</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/radar.css">
+</head>
+<body>
+
+  <!-- ===== LAYOUT ===== -->
+  <div class="radar-layout">
+
+    <!-- ========== PANNEAU LATÉRAL ========== -->
+    <aside class="radar-panel" id="radarPanel">
+
+      <!-- En-tête -->
+      <div class="rp-header">
+        <div>
+          <div class="rp-logo">🏍 Zot <span>Ride</span></div>
+          <div class="rp-subtitle">Radar – Positions en direct</div>
+        </div>
+        <a href="/" class="rp-login-link">
+          <i class="fas fa-sign-in-alt"></i> Connexion
+        </a>
+      </div>
+
+      <!-- Statistiques live -->
+      <div class="rp-stats-bar">
+        <div class="rp-stat-item">
+          <span id="stat-riders" class="rp-stat-num">0</span>
+          <span class="rp-stat-lbl">Motards actifs</span>
+        </div>
+        <div class="rp-stat-sep"></div>
+        <div class="rp-stat-item">
+          <span id="stat-sorties" class="rp-stat-num">0</span>
+          <span class="rp-stat-lbl">Sorties du jour</span>
+        </div>
+        <div class="rp-stat-sep"></div>
+        <div class="rp-stat-item">
+          <span id="stat-update" class="rp-stat-lbl">–</span>
+        </div>
+      </div>
+
+      <!-- ── Identité ── -->
+      <div class="rp-section">
+        <div class="rp-section-title">
+          <span><i class="fas fa-id-badge"></i> Mon identité</span>
+          <button class="rp-icon-btn" id="btnEditProfile" onclick="openProfileEdit()" title="Modifier">
+            <i class="fas fa-pen"></i>
+          </button>
+        </div>
+
+        <!-- Affichage (si profil enregistré) -->
+        <div id="profileDisplay" class="profile-display d-none">
+          <div class="profile-display-avatar" id="profileAvatar">?</div>
+          <div>
+            <div class="profile-display-name" id="profileName"></div>
+            <div class="profile-display-moto" id="profileMotoTxt"></div>
+          </div>
+        </div>
+
+        <!-- Formulaire -->
+        <div id="profileForm">
+          <input type="text" id="rdrPseudo" class="form-control mb-2"
+            placeholder="Ton pseudo *" maxlength="30">
+          <div class="row g-2 mb-2">
+            <div class="col-7">
+              <select class="form-select" id="rdrMarque">
+                <option value="">– Marque –</option>
+                <option>Honda</option><option>Yamaha</option><option>Kawasaki</option>
+                <option>Suzuki</option><option>BMW</option><option>Ducati</option>
+                <option>Harley-Davidson</option><option>KTM</option><option>Triumph</option>
+                <option>Royal Enfield</option><option>Aprilia</option><option>Autre</option>
+              </select>
+            </div>
+            <div class="col-5">
+              <input type="number" class="form-control" id="rdrCylindree"
+                placeholder="cc" min="50" max="2500">
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline-secondary w-100" onclick="saveProfile()">
+            <i class="fas fa-check"></i> Enregistrer
+          </button>
+          <div id="profileError" class="text-danger small mt-1 d-none"></div>
+        </div>
+      </div>
+
+      <!-- ── Ma position ── -->
+      <div class="rp-section">
+        <div class="rp-section-title">
+          <span><i class="fas fa-map-marker-alt"></i> Ma position</span>
+        </div>
+        <div id="shareStatus" class="share-status d-none"></div>
+        <button id="shareBtn" class="btn btn-primary w-100 mb-2" onclick="toggleSharing()">
+          <i class="fas fa-broadcast-tower"></i> Partager ma position
+        </button>
+        <p class="rp-hint">Position visible 30 min après la dernière mise à jour</p>
+      </div>
+
+      <!-- ── Motards actifs ── -->
+      <div class="rp-section">
+        <div class="rp-section-title">
+          <span><i class="fas fa-motorcycle"></i> Motards actifs</span>
+        </div>
+        <div id="ridersList">
+          <p class="rp-empty">Aucun motard actif pour l'instant</p>
+        </div>
+      </div>
+
+      <!-- ── Sorties du jour ── -->
+      <div class="rp-section">
+        <div class="rp-section-title">
+          <span><i class="fas fa-road"></i> Sorties du jour</span>
+        </div>
+        <div id="sortiesTodayList">
+          <p class="rp-empty">Aucune sortie programmée aujourd'hui</p>
+        </div>
+        <a href="/" class="btn btn-outline-primary btn-sm w-100 mt-2">
+          <i class="fas fa-plus"></i> Créer un compte pour organiser
+        </a>
+      </div>
+
+    </aside><!-- /.radar-panel -->
+
+    <!-- ========== CARTE ========== -->
+    <div class="radar-map-wrap">
+      <div id="radar-map"></div>
+
+      <!-- Bouton toggle panneau (mobile) -->
+      <button class="panel-toggle-btn d-lg-none" id="panelToggleBtn" onclick="togglePanel()">
+        <i class="fas fa-layer-group"></i>
+        <span id="toggleBtnLabel">Panneau</span>
+      </button>
+
+      <!-- Légende -->
+      <div class="map-legend">
+        <div class="legend-item"><span class="legend-dot" style="background:#4cc9f0"></span> Moi</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#2ecc71"></span> Motards</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#e63946"></span> Sorties</div>
+      </div>
+    </div>
+
+  </div><!-- /.radar-layout -->
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/radar.js"></script>
+</body>
+</html>

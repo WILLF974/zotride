@@ -1,0 +1,24 @@
+{
+  "name": "zotride",
+  "version": "1.0.0",
+  "description": "Zot Ride – Sorties moto Île de la Réunion",
+  "main": "server.js",
+  "engines": { "node": ">=20.0.0" },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --experimental-sqlite server.js",
+    "dev:watch": "nodemon --experimental-sqlite server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^9.4.3",
+    "nodemon": "^3.0.3"
+  }
+}
