@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0d0d0d">
+  <title>Zot Ride – Club Moto Réunion</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- ═══ NAVBAR ═══════════════════════════════════════════════ -->
+  <nav class="navbar navbar-expand-lg" id="mainNav" style="display:none">
+    <div class="container-fluid px-3">
+      <a class="navbar-brand" href="#" onclick="showPage('dashboard')">
+        🏍 Zot<span class="brand-accent">Ride</span>
+      </a>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navContent">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navContent">
+        <ul class="navbar-nav me-auto gap-1">
+          <li class="nav-item">
+            <a class="nav-link" href="#" onclick="showPage('dashboard')">
+              <i class="fas fa-road me-1"></i>Sorties
+            </a>
+          </li>
+          <li class="nav-item" id="nav-organiser" style="display:none">
+            <a class="nav-link" href="#" onclick="showPage('create-sortie')">
+              <i class="fas fa-plus-circle me-1"></i>Organiser
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/radar.html" target="_blank">
+              <i class="fas fa-broadcast-tower me-1"></i>Radar
+            </a>
+          </li>
+        </ul>
+        <ul class="navbar-nav align-items-lg-center gap-1">
+          <li class="nav-item notif-link">
+            <a class="nav-link" href="#" onclick="showPage('notifications')">
+              <i class="fas fa-bell"></i>
+              <span class="notif-badge" id="notif-count" style="display:none">0</span>
+            </a>
+          </li>
+          <li class="nav-item dropdown" id="nav-admin" style="display:none">
+            <a class="nav-link" href="#" onclick="showPage('admin')">
+              <i class="fas fa-shield-alt me-1"></i>Admin
+            </a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" data-bs-toggle="dropdown">
+              <div class="nav-avatar"><i class="fas fa-user"></i></div>
+              <span id="nav-pseudo"></span>
+            </a>
+            <ul class="dropdown-menu dropdown-dark dropdown-menu-end">
+              <li><a class="dropdown-item" href="#" onclick="showPage('profile')">
+                <i class="fas fa-user-cog me-2"></i>Profil
+              </a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="#" onclick="logout()">
+                <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+              </a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══ PAGE : LOGIN ══════════════════════════════════════════ -->
+  <div class="auth-page d-none" id="page-login">
+    <div class="auth-wrap">
+      <div class="text-center mb-4">
+        <div class="auth-logo">🏍 Zot<span>Ride</span></div>
+        <p class="text-muted">Club moto – Île de La Réunion</p>
+      </div>
+      <div class="auth-card">
+        <h5 class="mb-4">Connexion</h5>
+        <form onsubmit="login(event)" novalidate>
+          <div class="mb-3">
+            <input type="text" id="loginEmail" class="form-control" placeholder="Email" autocomplete="email" inputmode="email">
+          </div>
+          <div class="mb-3">
+            <input type="password" id="loginPassword" class="form-control" placeholder="Mot de passe" autocomplete="current-password">
+          </div>
+          <div class="alert alert-danger d-none mb-3" id="loginError"></div>
+          <button type="submit" class="btn btn-primary w-100 mb-3">
+            <i class="fas fa-sign-in-alt me-2"></i>Se connecter
+          </button>
+        </form>
+        <div class="text-center">
+          <span class="small" style="color:#aaa">Pas encore membre ?</span>
+          <a href="#" onclick="showPage('register')" class="small ms-1 fw-bold">Créer un compte</a>
+        </div>
+        <div class="text-center mt-2">
+          <a href="/radar.html" class="small" style="color:#f4a261">
+            <i class="fas fa-broadcast-tower me-1"></i>Voir le Radar public
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PAGE : REGISTER ═══════════════════════════════════════ -->
+  <div class="auth-page d-none" id="page-register">
+    <div class="auth-wrap">
+      <div class="text-center mb-4">
+        <div class="auth-logo">🏍 Zot<span>Ride</span></div>
+        <p class="text-muted">Rejoindre le club</p>
+      </div>
+      <div class="auth-card">
+        <h5 class="mb-4">Inscription</h5>
+        <form id="registerForm" onsubmit="register(event)" novalidate>
+          <div class="mb-3">
+            <input type="text" id="regPseudo" class="form-control" placeholder="Pseudo *" autocomplete="username">
+          </div>
+          <div class="mb-3">
+            <input type="text" id="regEmail" class="form-control" placeholder="Email *" autocomplete="email" inputmode="email">
+          </div>
+          <div class="mb-3">
+            <input type="password" id="regPassword" class="form-control" placeholder="Mot de passe * (6 car. min)" autocomplete="new-password">
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-7">
+              <select class="form-select" id="regMarque">
+                <option value="">– Marque de moto –</option>
+                <option>Honda</option><option>Yamaha</option><option>Kawasaki</option>
+                <option>Suzuki</option><option>BMW</option><option>Ducati</option>
+                <option>Harley-Davidson</option><option>KTM</option><option>Triumph</option>
+                <option>Royal Enfield</option><option>Aprilia</option><option>Autre</option>
+              </select>
+            </div>
+            <div class="col-5">
+              <input type="text" id="regCylindree" class="form-control" placeholder="cc" inputmode="numeric">
+            </div>
+          </div>
+          <div class="alert alert-danger d-none mb-3" id="registerError"></div>
+          <div class="alert alert-success d-none mb-3" id="registerSuccess"></div>
+          <button type="submit" class="btn btn-primary w-100 mb-3">
+            <i class="fas fa-user-plus me-2"></i>S'inscrire
+          </button>
+        </form>
+        <div class="text-center">
+          <a href="#" onclick="showPage('login')" class="small">← Retour à la connexion</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PAGES AUTHENTIFIÉES ═══════════════════════════════════ -->
+  <main class="container-fluid px-3 py-4">
+
+    <!-- Dashboard -->
+    <div class="page d-none" id="page-dashboard">
+      <div class="page-header d-flex align-items-center justify-content-between mb-4">
+        <div>
+          <h4 class="mb-0"><i class="fas fa-road text-primary me-2"></i>Sorties</h4>
+          <p class="text-muted small mb-0">Toutes les sorties programmées</p>
+        </div>
+        <button class="btn btn-primary" onclick="showPage('create-sortie')">
+          <i class="fas fa-plus me-1"></i><span class="d-none d-sm-inline">Organiser</span>
+        </button>
+      </div>
+      <div class="row g-3" id="sorties-list"></div>
+    </div>
+
+    <!-- Détail sortie -->
+    <div class="page d-none" id="page-sortie-detail">
+      <div class="mb-3">
+        <button class="btn btn-link text-muted p-0" onclick="showPage('dashboard')">
+          <i class="fas fa-chevron-left me-1"></i>Retour aux sorties
+        </button>
+      </div>
+      <h4 id="detail-titre" class="mb-3"></h4>
+      <div id="detail-loading" class="text-center py-5">
+        <div class="spinner-border text-primary"></div>
+      </div>
+      <div id="detail-content" class="d-none">
+        <div class="row g-3">
+          <div class="col-lg-8">
+            <div class="card-dark p-3 mb-3" id="detail-info"></div>
+            <div class="card-dark p-0 mb-3" style="height:340px">
+              <div id="detail-map" style="height:100%;border-radius:10px"></div>
+            </div>
+            <div class="d-flex gap-2">
+              <button id="btn-participate" class="btn btn-primary flex-grow-1" onclick="toggleParticipation()">
+                <i class="fas fa-motorcycle me-1"></i>Rejoindre
+              </button>
+              <button id="btn-delete-sortie" class="btn btn-outline-danger d-none" onclick="deleteSortie()">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="card-dark p-3">
+              <h6 class="mb-3">
+                <i class="fas fa-users text-primary me-2"></i>Participants
+                <span class="badge bg-primary ms-1" id="detail-count">0</span>
+              </h6>
+              <div id="detail-participants"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Créer sortie -->
+    <div class="page d-none" id="page-create-sortie">
+      <div class="mb-3">
+        <button class="btn btn-link text-muted p-0" onclick="showPage('dashboard')">
+          <i class="fas fa-chevron-left me-1"></i>Retour
+        </button>
+      </div>
+      <h4 class="mb-4"><i class="fas fa-route text-primary me-2"></i>Organiser une sortie</h4>
+      <div class="row g-3">
+        <div class="col-lg-5">
+          <div class="card-dark p-3">
+            <form id="sortieForm" onsubmit="createSortie(event)">
+              <div class="mb-3">
+                <label class="form-label small">Titre *</label>
+                <input type="text" id="sortieTitre" class="form-control" placeholder="Ex : Tour du Piton" required maxlength="80">
+              </div>
+              <div class="mb-3">
+                <label class="form-label small">Description</label>
+                <textarea id="sortieDesc" class="form-control" rows="3" placeholder="Détails, niveau requis, équipement…"></textarea>
+              </div>
+              <div class="row g-2 mb-3">
+                <div class="col-7">
+                  <label class="form-label small">Date *</label>
+                  <input type="date" id="sortieDate" class="form-control" required>
+                </div>
+                <div class="col-5">
+                  <label class="form-label small">Heure</label>
+                  <input type="time" id="sortieHeure" class="form-control" value="09:00">
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small">Max participants</label>
+                <input type="text" id="sortieMaxParticipants" class="form-control" value="20" inputmode="numeric">
+              </div>
+              <div class="mb-3">
+                <label class="form-label small">Rechercher une ville</label>
+                <div class="d-flex gap-2">
+                  <input type="text" id="geocodeInput" class="form-control" placeholder="Saint-Denis, Cilaos…">
+                  <button type="button" class="btn btn-outline-secondary" onclick="geocodeCity()">
+                    <i class="fas fa-search"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="alert alert-danger d-none mb-3" id="sortieError"></div>
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-check me-1"></i>Publier la sortie
+              </button>
+            </form>
+          </div>
+        </div>
+        <div class="col-lg-7">
+          <div class="card-dark p-3 mb-3">
+            <p class="text-muted small mb-2">
+              <i class="fas fa-info-circle me-1 text-primary"></i>
+              Cliquez sur la carte pour ajouter les points du parcours.
+              Le <strong>1er point</strong> = point de rassemblement.
+            </p>
+            <div id="waypoints-list"></div>
+          </div>
+          <div style="height:420px;border-radius:10px;overflow:hidden">
+            <div id="create-map" style="height:100%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profil -->
+    <div class="page d-none" id="page-profile">
+      <h4 class="mb-4"><i class="fas fa-user-cog text-primary me-2"></i>Mon profil</h4>
+      <div class="row g-3">
+        <div class="col-lg-4">
+          <div class="card-dark p-4 text-center">
+            <div class="profile-avatar mx-auto mb-3"><i class="fas fa-user fa-2x"></i></div>
+            <h5 id="profile-pseudo" class="mb-1"></h5>
+            <p class="text-muted small" id="profile-moto"></p>
+            <div class="row g-2 mt-3">
+              <div class="col-6">
+                <div class="stat-box">
+                  <div class="stat-num" id="stat-created">–</div>
+                  <div class="stat-lbl">Sorties créées</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="stat-box">
+                  <div class="stat-num" id="stat-joined">–</div>
+                  <div class="stat-lbl">Participations</div>
+                </div>
+              </div>
+            </div>
+            <p class="text-muted small mt-3">Membre depuis <span id="stat-since">–</span></p>
+          </div>
+        </div>
+        <div class="col-lg-8">
+          <div class="card-dark p-4">
+            <h6 class="mb-3">Modifier mes informations</h6>
+            <form onsubmit="updateProfile(event)">
+              <div class="mb-3">
+                <label class="form-label small">Pseudo</label>
+                <input type="text" id="profilePseudo" class="form-control" required maxlength="30">
+              </div>
+              <div class="row g-2 mb-3">
+                <div class="col-7">
+                  <label class="form-label small">Marque de moto</label>
+                  <select class="form-select" id="profileMarque">
+                    <option value="">– Marque –</option>
+                    <option>Honda</option><option>Yamaha</option><option>Kawasaki</option>
+                    <option>Suzuki</option><option>BMW</option><option>Ducati</option>
+                    <option>Harley-Davidson</option><option>KTM</option><option>Triumph</option>
+                    <option>Royal Enfield</option><option>Aprilia</option><option>Autre</option>
+                  </select>
+                </div>
+                <div class="col-5">
+                  <label class="form-label small">Cylindrée (cc)</label>
+                  <input type="text" id="profileCylindree" class="form-control" placeholder="1000" inputmode="numeric">
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small">Nouveau mot de passe <span class="text-muted">(laisser vide pour ne pas changer)</span></label>
+                <input type="password" id="profilePassword" class="form-control" placeholder="••••••••" minlength="6">
+              </div>
+              <div class="alert alert-danger d-none mb-3" id="profileError"></div>
+              <div class="alert alert-success d-none mb-3" id="profileSuccess"></div>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i>Enregistrer
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="page d-none" id="page-notifications">
+      <div class="page-header d-flex align-items-center justify-content-between mb-4">
+        <h4 class="mb-0"><i class="fas fa-bell text-primary me-2"></i>Notifications</h4>
+        <button class="btn btn-outline-secondary btn-sm" onclick="markAllRead()">
+          <i class="fas fa-check-double me-1"></i>Tout marquer lu
+        </button>
+      </div>
+      <div id="notifications-list"></div>
+    </div>
+
+    <!-- Admin -->
+    <div class="page d-none" id="page-admin">
+      <h4 class="mb-4"><i class="fas fa-shield-alt text-primary me-2"></i>Administration</h4>
+      <div class="row g-3 mb-4" id="admin-stats-row"></div>
+      <div class="d-flex gap-2 mb-3">
+        <button class="admin-tab active" onclick="showAdminTab('users', this)">
+          <i class="fas fa-users me-1"></i>Membres
+          <span class="badge bg-danger ms-1" id="pending-badge" style="display:none">0</span>
+        </button>
+        <button class="admin-tab" onclick="showAdminTab('sorties', this)">
+          <i class="fas fa-road me-1"></i>Sorties
+        </button>
+      </div>
+      <!-- Onglet membres -->
+      <div id="admin-tab-users">
+        <div class="d-flex gap-2 mb-3">
+          <button class="btn btn-sm btn-outline-secondary" onclick="filterUsers('pending')">En attente</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="filterUsers('all')">Tous</button>
+        </div>
+        <div id="admin-users-list"></div>
+      </div>
+      <!-- Onglet sorties -->
+      <div id="admin-tab-sorties" style="display:none">
+        <div id="admin-sorties-list"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Toast -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+    <div id="toast" class="toast text-white border-0" role="alert">
+      <div class="toast-body" id="toast-body"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/map.js"></script>
+  <script src="/js/sorties.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

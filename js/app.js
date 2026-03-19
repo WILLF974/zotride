@@ -26,13 +26,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-function bootApp() {
-  document.getElementById('mainNav').style.display = 'flex';
-  document.getElementById('nav-pseudo').textContent = currentUser.pseudo;
+// Niveau du rôle courant
+function userLevel() {
+  const levels = { participant: 1, organisateur: 2, admin: 3, superadmin: 4 };
+  return levels[currentUser?.role] || 0;
+}
 
-  if (currentUser.role === 'admin') {
-    document.getElementById('nav-admin').style.display = 'block';
-  }
+function applyRoleUI() {
+  const level = userLevel();
+  document.getElementById('nav-pseudo').textContent = currentUser.pseudo;
+  const navOrg   = document.getElementById('nav-organiser');
+  const navAdmin = document.getElementById('nav-admin');
+  if (navOrg)   navOrg.style.display   = level >= 2 ? 'block' : 'none';
+  if (navAdmin) navAdmin.style.display = level >= 2 ? 'block' : 'none';
+}
+
+async function bootApp() {
+  document.getElementById('mainNav').style.display = 'flex';
+  applyRoleUI();
+
+  // Rafraîchir le profil depuis l'API pour avoir le rôle à jour (ex: superadmin promu depuis la DB)
+  try {
+    const fresh = await api('/users/me');
+    if (fresh && fresh.role !== currentUser.role) {
+      currentUser = fresh;
+      localStorage.setItem('user', JSON.stringify(fresh));
+      applyRoleUI();
+    }
+  } catch { /* si l'API échoue on garde le rôle en cache */ }
 
   pollNotifications();
   notifInterval = setInterval(pollNotifications, 30000);
@@ -41,6 +62,15 @@ function bootApp() {
 
 // ── Navigation ────────────────────────────────────────────────
 function showPage(page) {
+  // Contrôle d'accès par rôle
+  if (page === 'create-sortie' && userLevel() < 2) {
+    showToast('Seuls les organisateurs peuvent créer des sorties', 'error');
+    return;
+  }
+  if (page === 'admin' && userLevel() < 2) {
+    showPage('dashboard');
+    return;
+  }
   document.querySelectorAll('.page, .auth-page').forEach(el => el.classList.add('d-none'));
 
   const el = document.getElementById('page-' + page);
@@ -86,8 +116,20 @@ async function api(endpoint, method = 'GET', body = null) {
   };
   if (body) opts.body = JSON.stringify(body);
 
-  const res = await fetch(API + endpoint, opts);
-  const data = await res.json();
+  let res;
+  try {
+    res = await fetch(API + endpoint, opts);
+  } catch {
+    throw new Error('Impossible de joindre le serveur. Vérifiez votre connexion.');
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    // La réponse n'est pas du JSON (erreur Apache/PHP HTML)
+    throw new Error(`Erreur serveur HTTP ${res.status} — vérifiez la configuration Hostinger (.htaccess, mod_rewrite)`);
+  }
 
   if (!res.ok) {
     if (res.status === 401 && currentUser) { logout(); return; }
@@ -102,11 +144,17 @@ async function login(e) {
   const errEl = document.getElementById('loginError');
   errEl.classList.add('d-none');
 
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  if (!email || !password) {
+    errEl.textContent = 'Veuillez remplir tous les champs.';
+    errEl.classList.remove('d-none');
+    return;
+  }
+
   try {
-    const data = await api('/auth/login', 'POST', {
-      email: document.getElementById('loginEmail').value.trim(),
-      password: document.getElementById('loginPassword').value
-    });
+    const data = await api('/auth/login', 'POST', { email, password });
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
     currentUser = data.user;
@@ -123,6 +171,21 @@ async function register(e) {
   const okEl  = document.getElementById('registerSuccess');
   errEl.classList.add('d-none');
   okEl.classList.add('d-none');
+
+  const pseudo   = document.getElementById('regPseudo').value.trim();
+  const email    = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value;
+
+  if (!pseudo || !email || !password) {
+    errEl.textContent = 'Veuillez remplir les champs obligatoires (*).';
+    errEl.classList.remove('d-none');
+    return;
+  }
+  if (password.length < 6) {
+    errEl.textContent = 'Le mot de passe doit contenir au moins 6 caractères.';
+    errEl.classList.remove('d-none');
+    return;
+  }
 
   try {
     const data = await api('/auth/register', 'POST', {
@@ -171,21 +234,40 @@ async function loadNotifications() {
   list.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
   try {
     const data = await api('/notifications');
-    if (!data.notifications.length) {
+    if (!data?.notifications?.length) {
       list.innerHTML = `<div class="empty-state"><i class="fas fa-bell-slash"></i><p>Aucune notification</p></div>`;
       return;
     }
-    list.innerHTML = data.notifications.map(n => `
-      <div class="notif-item ${n.read ? '' : 'unread'}">
+    list.innerHTML = (data.notifications || []).map(n => {
+      const isNewUser = n.type === 'new_user' && n.related_id && userLevel() >= 2;
+      const roles = typeof assignableRoles === 'function' ? assignableRoles() : [];
+      const roleOpts = roles.map(r => `<option value="${r.value}">${r.label}</option>`).join('');
+      return `
+      <div class="notif-item ${n.read ? '' : 'unread'}" id="notif-row-${n.id}">
         <div class="d-flex align-items-start gap-3">
           <div class="mt-1 fs-5">${notifIcon(n.type)}</div>
           <div class="flex-grow-1">
             <p class="mb-1">${sanitize(n.message)}</p>
             <span class="notif-time">${fmtDatetime(n.created_at)}</span>
+            ${isNewUser ? `
+            <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
+              <select class="form-select form-select-sm" id="notif-role-${n.related_id}" style="width:auto">
+                ${roleOpts}
+              </select>
+              <button class="btn btn-success btn-sm" onclick="notifValidateUser(${n.related_id}, ${n.id})">
+                <i class="fas fa-check me-1"></i>Valider
+              </button>
+              <button class="btn btn-warning btn-sm" onclick="notifBlockUser(${n.related_id}, ${n.id})">
+                <i class="fas fa-ban me-1"></i>Suspendre
+              </button>
+              <button class="btn btn-outline-danger btn-sm" onclick="notifDeleteUser(${n.related_id}, ${n.id})">
+                <i class="fas fa-trash me-1"></i>Refuser
+              </button>
+            </div>` : ''}
           </div>
         </div>
       </div>
-    `).join('');
+    `; }).join('');
     document.getElementById('notif-count').style.display = 'none';
   } catch (err) {
     list.innerHTML = `<p class="text-danger">Erreur : ${err.message}</p>`;
@@ -196,6 +278,35 @@ async function markAllRead() {
   await api('/notifications/read', 'PUT');
   loadNotifications();
   document.getElementById('notif-count').style.display = 'none';
+}
+
+// ── Actions rapides depuis les notifications ───────────────────
+async function notifValidateUser(userId, notifId) {
+  const sel  = document.getElementById(`notif-role-${userId}`);
+  const role = sel ? sel.value : 'participant';
+  try {
+    const data = await api(`/admin/users/${userId}/validate`, 'PUT', { role });
+    showToast(data.message);
+    document.getElementById(`notif-row-${notifId}`)?.querySelector('.d-flex.mt-2')?.remove();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function notifBlockUser(userId, notifId) {
+  if (!confirm('Suspendre ce compte ?')) return;
+  try {
+    const data = await api(`/admin/users/${userId}/block`, 'PUT');
+    showToast(data.message);
+    document.getElementById(`notif-row-${notifId}`)?.querySelector('.d-flex.mt-2')?.remove();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function notifDeleteUser(userId, notifId) {
+  if (!confirm('Refuser et supprimer ce compte ? Action irréversible.')) return;
+  try {
+    await api(`/admin/users/${userId}`, 'DELETE');
+    showToast('Compte supprimé');
+    document.getElementById(`notif-row-${notifId}`)?.querySelector('.d-flex.mt-2')?.remove();
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 function notifIcon(type) {

@@ -24,8 +24,8 @@ body {
   min-height: 100vh;
 }
 
-a { color: var(--primary); text-decoration: none; }
-a:hover { color: var(--primary-dark); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #fff; }
 
 /* ============================================================
    NAVBAR
@@ -312,7 +312,8 @@ a:hover { color: var(--primary-dark); }
   display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: .75rem;
 }
-.user-row.pending { border-left: 3px solid var(--accent); }
+.user-row.pending  { border-left: 3px solid var(--accent); }
+.user-row.blocked-row { border-left: 3px solid #ffc107; opacity: .75; }
 
 .badge-pending {
   background: rgba(244,162,97,.15);

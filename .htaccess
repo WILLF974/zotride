@@ -1,0 +1,50 @@
+Options -Indexes
+
+RewriteEngine On
+RewriteBase /
+
+# Passer le header Authorization à PHP (Hostinger CGI le supprime sinon)
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization},L]
+
+# CORS et OPTIONS pour l'API
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^api/ - [R=204,L]
+
+# Routes API → api.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/(.*)$ api.php [QSA,L]
+
+# SPA fallback → index.html (sauf fichiers statiques existants)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^(?!radar\.html).*$ index.html [L]
+
+# Protéger les fichiers PHP et la config
+<FilesMatch "\.(php|env)$">
+  # api.php est accessible via RewriteRule, les autres sont protégés
+</FilesMatch>
+
+<Files "config.php">
+  Order deny,allow
+  Deny from all
+</Files>
+
+<Files ".env">
+  Order deny,allow
+  Deny from all
+</Files>
+
+# Compression gzip
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>
+
+# Cache assets statiques
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 month"
+  ExpiresByType application/javascript "access plus 1 month"
+  ExpiresByType image/* "access plus 1 month"
+</IfModule>
