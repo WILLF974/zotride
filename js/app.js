@@ -35,10 +35,12 @@ function userLevel() {
 function applyRoleUI() {
   const level = userLevel();
   document.getElementById('nav-pseudo').textContent = currentUser.pseudo;
-  const navOrg   = document.getElementById('nav-organiser');
-  const navAdmin = document.getElementById('nav-admin');
-  if (navOrg)   navOrg.style.display   = level >= 2 ? 'block' : 'none';
-  if (navAdmin) navAdmin.style.display = level >= 2 ? 'block' : 'none';
+  const navOrg     = document.getElementById('nav-organiser');
+  const navAdmin   = document.getElementById('nav-admin');
+  const navMembers = document.getElementById('nav-members');
+  if (navOrg)     navOrg.style.display     = level >= 2 ? 'block' : 'none';
+  if (navAdmin)   navAdmin.style.display   = level >= 2 ? 'block' : 'none';
+  if (navMembers) navMembers.style.display = level >= 3 ? 'block' : 'none';
 }
 
 async function bootApp() {
@@ -71,6 +73,10 @@ function showPage(page) {
     showPage('dashboard');
     return;
   }
+  if (page === 'members' && userLevel() < 3) {
+    showPage('dashboard');
+    return;
+  }
   document.querySelectorAll('.page, .auth-page').forEach(el => el.classList.add('d-none'));
 
   const el = document.getElementById('page-' + page);
@@ -96,6 +102,7 @@ function showPage(page) {
     case 'profile':         loadProfile(); break;
     case 'notifications':   loadNotifications(); break;
     case 'admin':           loadAdminData(); break;
+    case 'members':         loadMembers(); break;
   }
 }
 
@@ -212,6 +219,8 @@ function logout() {
   currentUser = null;
   document.getElementById('mainNav').style.display = 'none';
   document.getElementById('nav-admin').style.display = 'none';
+  const navM = document.getElementById('nav-members');
+  if (navM) navM.style.display = 'none';
   showPage('login');
 }
 

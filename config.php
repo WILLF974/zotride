@@ -264,3 +264,59 @@ function notifyAdmins(string $message, string $type, ?int $relatedId = null): vo
         notify((int)$a['id'], $message, $type, $relatedId);
     }
 }
+
+// ── Email ─────────────────────────────────────────────────────
+function sendEmail(string $to, string $subject, string $html): void {
+    $from    = 'noreply@zotride.fr';
+    $headers = implode("\r\n", [
+        'MIME-Version: 1.0',
+        'Content-Type: text/html; charset=utf-8',
+        "From: Zot Ride <{$from}>",
+        "Reply-To: {$from}",
+        'X-Mailer: ZotRide/1.0',
+    ]);
+    @mail($to, '=?utf-8?B?' . base64_encode($subject) . '?=', $html, $headers);
+}
+
+function emailLayout(string $title, string $body): string {
+    return "<!DOCTYPE html><html lang='fr'><head><meta charset='utf-8'><title>{$title}</title></head>"
+        . "<body style='margin:0;padding:0;background:#0d0d0d;font-family:Segoe UI,system-ui,sans-serif;color:#e2e2e2'>"
+        . "<table width='100%' cellpadding='0' cellspacing='0'><tr><td align='center' style='padding:40px 20px'>"
+        . "<table width='100%' style='max-width:560px;background:#181818;border-radius:16px;border:1px solid #2a2a2a'>"
+        . "<tr><td style='background:#e63946;padding:24px 32px;text-align:center;border-radius:16px 16px 0 0'>"
+        . "<h1 style='margin:0;color:#fff;font-size:1.5rem;letter-spacing:3px;text-transform:uppercase'>&#x1F3CD; ZotRide</h1>"
+        . "<p style='margin:4px 0 0;color:rgba(255,255,255,.75);font-size:.85rem'>Club moto – Île de La Réunion</p>"
+        . "</td></tr>"
+        . "<tr><td style='padding:32px'>{$body}</td></tr>"
+        . "<tr><td style='background:#111;padding:16px 32px;text-align:center;border-radius:0 0 16px 16px'>"
+        . "<p style='margin:0;font-size:.78rem;color:#666'>© 2026 Zot Ride · <a href='https://zotride.fr' style='color:#e63946;text-decoration:none'>zotride.fr</a></p>"
+        . "</td></tr></table></td></tr></table></body></html>";
+}
+
+function emailCompteValide(string $pseudo, string $roleName): string {
+    $body = "<h2 style='color:#fff;margin-top:0'>Bienvenue, " . htmlspecialchars($pseudo) . " !</h2>"
+        . "<p style='color:#aaa;line-height:1.7'>Votre inscription sur <strong style='color:#e2e2e2'>Zot Ride</strong> a été validée par un administrateur.</p>"
+        . "<table width='100%' style='background:#202020;border-radius:10px;padding:16px;margin:16px 0'>"
+        . "<tr><td><span style='color:#888;font-size:.85rem'>Rôle attribué</span></td>"
+        . "<td align='right'><strong style='color:#e63946'>" . htmlspecialchars($roleName) . "</strong></td></tr></table>"
+        . "<p style='color:#aaa;line-height:1.7'>Vous pouvez maintenant vous connecter et rejoindre les sorties !</p>"
+        . "<div style='text-align:center;margin:24px 0'>"
+        . "<a href='https://zotride.fr' style='background:#e63946;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block'>Se connecter →</a>"
+        . "</div>";
+    return emailLayout('Compte validé – Zot Ride', $body);
+}
+
+function emailNouvelleSortie(string $titre, string $date, string $heure, string $organisateur): string {
+    $dateFmt = date('d/m/Y', strtotime($date));
+    $body = "<h2 style='color:#fff;margin-top:0'>Nouvelle sortie !</h2>"
+        . "<p style='color:#aaa;line-height:1.7'>Une nouvelle sortie vient d'être organisée sur Zot Ride.</p>"
+        . "<table width='100%' style='background:#202020;border-radius:10px;padding:16px;margin:16px 0;border-collapse:collapse'>"
+        . "<tr><td style='padding:6px 0'><span style='color:#888;font-size:.85rem'>Sortie</span></td><td style='padding:6px 0' align='right'><strong style='color:#fff'>" . htmlspecialchars($titre) . "</strong></td></tr>"
+        . "<tr><td style='padding:6px 0'><span style='color:#888;font-size:.85rem'>Date</span></td><td style='padding:6px 0' align='right'><strong style='color:#e2e2e2'>{$dateFmt} à {$heure}</strong></td></tr>"
+        . "<tr><td style='padding:6px 0'><span style='color:#888;font-size:.85rem'>Organisateur</span></td><td style='padding:6px 0' align='right'><strong style='color:#e2e2e2'>" . htmlspecialchars($organisateur) . "</strong></td></tr>"
+        . "</table>"
+        . "<div style='text-align:center;margin:24px 0'>"
+        . "<a href='https://zotride.fr' style='background:#e63946;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block'>Voir la sortie →</a>"
+        . "</div>";
+    return emailLayout("Nouvelle sortie : {$titre}", $body);
+}

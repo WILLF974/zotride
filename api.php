@@ -268,6 +268,12 @@ function route_sorties_create(): void {
 
     // Notifier tous les membres validés
     notifyAllUsers("Nouvelle sortie : $titre le $date à $heure", 'new_sortie', $user['id']);
+    // Envoyer emails à tous les membres validés
+    $mbrs = $db->prepare("SELECT email, pseudo FROM users WHERE validated=1 AND blocked=0 AND id!=?");
+    $mbrs->execute([$user['id']]);
+    foreach ($mbrs->fetchAll() as $m) {
+        sendEmail($m['email'], "Nouvelle sortie : $titre", emailNouvelleSortie($titre, $date, $heure, $user['pseudo']));
+    }
     jsonResponse(['id' => $sortieId, 'message' => 'Sortie créée'], 201);
 }
 
@@ -481,6 +487,7 @@ function route_admin_user_validate(int $id): void {
     $db->prepare("UPDATE users SET validated=1, role=? WHERE id=?")->execute([$role, $id]);
     $roleName = roleName($role);
     notify($id, "Votre compte a été validé en tant que $roleName. Bienvenue sur Zot Ride !", 'account_validated');
+    sendEmail($target['email'], "Votre compte Zot Ride a été validé !", emailCompteValide($target['pseudo'], $roleName));
     jsonResponse(['message' => "Utilisateur validé en tant que $roleName"]);
 }
 
