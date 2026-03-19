@@ -3,16 +3,15 @@ Options -Indexes
 RewriteEngine On
 RewriteBase /
 
-# Passer le header Authorization à PHP (Hostinger CGI le supprime sinon)
-RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization},L]
+# Passer le header Authorization à PHP (LiteSpeed/CGI le supprime sinon)
+# IMPORTANT: pas de flag [L] ici pour ne pas stopper les règles suivantes
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
 # CORS et OPTIONS pour l'API
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^api/ - [R=204,L]
 
-# Routes API → api.php
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
+# Routes API → api.php (sans conditions !-f !-d pour compatibilité LiteSpeed)
 RewriteRule ^api/(.*)$ api.php [QSA,L]
 
 # SPA fallback → index.html (sauf fichiers statiques existants)

@@ -539,7 +539,6 @@ function route_admin_user_delete(int $id): void {
     $db->prepare("DELETE FROM notifications WHERE user_id=?")->execute([$id]);
     $db->prepare("DELETE FROM participants WHERE user_id=?")->execute([$id]);
     $db->prepare("DELETE FROM participant_locations WHERE user_id=?")->execute([$id]);
-    $db->prepare("DELETE FROM radar_positions WHERE session_id IN (SELECT session_id FROM radar_positions LIMIT 0)")->execute([]);
     $db->prepare("DELETE FROM users WHERE id=?")->execute([$id]);
     jsonResponse(['message' => 'Utilisateur supprimé']);
 }
