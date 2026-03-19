@@ -1,23 +1,25 @@
-const path = require('path');
-const fs = require('fs');
-const bcrypt = require('bcryptjs');
+import path from 'path';
+import fs from 'fs';
+import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
 
-// Ensure data/ directory exists
-const dataDir = path.join(__dirname, '..', 'data');
+const _require = createRequire(import.meta.url);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const dataDir = path.join(__dirname, '../../data');
 fs.mkdirSync(dataDir, { recursive: true });
 
 const dbPath = path.join(dataDir, 'zotride.db');
 
 let db;
 
-// Try better-sqlite3 first (production Linux), fallback to node:sqlite (Mac/Node 22+)
 try {
-  const Database = require('better-sqlite3');
+  const Database = _require('better-sqlite3');
   db = new Database(dbPath);
   console.log('SQLite: using better-sqlite3');
-} catch (err) {
+} catch {
   console.log('better-sqlite3 not available, falling back to node:sqlite');
-  const { DatabaseSync } = require('node:sqlite');
+  const { DatabaseSync } = _require('node:sqlite');
   db = new DatabaseSync(dbPath);
 }
 
@@ -105,9 +107,10 @@ db.exec(`
   );
 `);
 
-// Create default admin if not exists
+// Créer l'admin par défaut si inexistant
 const adminExists = db.prepare("SELECT id FROM users WHERE role = 'admin'").get();
 if (!adminExists) {
+  const bcrypt = _require('bcryptjs');
   const hash = bcrypt.hashSync('admin123', 10);
   db.prepare(`
     INSERT INTO users (pseudo, email, password, role, validated)
@@ -116,4 +119,4 @@ if (!adminExists) {
   console.log('Admin créé : admin@zotride.fr / admin123');
 }
 
-module.exports = db;
+export default db;

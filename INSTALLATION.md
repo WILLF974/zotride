@@ -1,104 +1,121 @@
-# Zot Ride – Guide d'installation et déploiement Hostinger
+# Zot Ride – Guide d'installation Hostinger (Astro + Node.js)
 
-## Section A : Prérequis
-
-- Hébergement Hostinger Business Cloud ou VPS avec Node.js
-- Accès hPanel
-- Node.js 20.x ou 22.x disponible sur l'hébergeur
+## Prérequis
+- Hébergement Hostinger **Node.js** (hPanel)
+- Node.js ≥ 20
+- Accès SSH ou File Manager
 
 ---
 
-## Section B : Test local (Mac/PC)
+## Structure du déploiement
 
+Après le build, `dist/` contient :
+```
+dist/
+  server/entry.mjs   ← point d'entrée du serveur Node.js
+  client/            ← assets statiques (CSS, JS)
+```
+
+La commande de démarrage : `node dist/server/entry.mjs`
+
+---
+
+## Étapes de déploiement sur Hostinger
+
+### 1. Uploader l'archive
+- Ouvrir **hPanel → File Manager**
+- Naviguer vers `/home/user/domains/zotride.fr/`
+- Uploader `zotride-hostinger.zip`
+- Clic droit → **Extraire** dans le dossier courant
+
+### 2. Installer les dépendances natives
+Via le **terminal SSH** ou **hPanel Terminal** :
 ```bash
-git clone ... (ou décompresser l'archive zotride-hostinger.zip)
-cd zotride
+cd /home/user/domains/zotride.fr
 npm install
-npm run dev   # utilise node --experimental-sqlite (Mac)
 ```
+> Cela installe uniquement `better-sqlite3` (optionnel, compilé sur Linux).
 
-**Note importante :**
-- Sur **Mac**, `better-sqlite3` ne compile pas sans Xcode. L'application bascule automatiquement sur `node:sqlite` (Node.js 22+ requis).
-- Sur **Linux** (Hostinger), `npm start` utilise `better-sqlite3` directement (compilation automatique).
-
----
-
-## Section C : Déploiement Hostinger – étapes détaillées
-
-### 1. Upload des fichiers via SFTP ou Gestionnaire de fichiers
-
-- Uploader TOUT le contenu du dossier `zotride-hostinger.zip` dans le répertoire racine de votre domaine
-- **NE PAS uploader** `node_modules/` (sera généré par Hostinger)
-- Créer le dossier `data/` avec les droits d'écriture :
-  ```bash
-  mkdir data
-  chmod 755 data
-  ```
-
-### 2. Configuration hPanel → Node.js
-
-- Aller dans **hPanel > Sites Web > zotride.fr > Node.js**
-- Version Node.js : **20.x** ou **22.x**
-- Application root : `/home/user/domains/zotride.fr/`
-- Application startup file : `server.js`
-- Application URL : `zotride.fr`
-
-### 3. Variables d'environnement dans hPanel
-
-Dans hPanel > Node.js > Environment Variables, ajouter :
-
-| Variable    | Valeur                            |
-|-------------|-----------------------------------|
-| PORT        | (laisser vide, Hostinger le gère) |
-| JWT_SECRET  | votre-cle-secrete-generee         |
-| NODE_ENV    | production                        |
-
-Générer un JWT_SECRET sécurisé :
+### 3. Configurer les variables d'environnement
 ```bash
-node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+cp .env.example .env
+nano .env
+```
+Renseigner :
+```
+PORT=3000
+JWT_SECRET=une-valeur-secrete-longue-et-aleatoire
+NODE_ENV=production
 ```
 
-### 4. Installation des dépendances
+### 4. Configurer Node.js dans hPanel
+- **hPanel → Node.js**
+- **Application root** : `/home/user/domains/zotride.fr`
+- **Application startup file** : `dist/server/entry.mjs`
+- **Node.js version** : 20 ou supérieure
+- Cliquer **Save** puis **Restart**
 
-- Dans hPanel Node.js → cliquer **"Install NPM"**
-- Attendre la fin de l'installation
-- `better-sqlite3` se compile automatiquement sur Linux (Hostinger)
+### 5. Vérifier le démarrage
+```bash
+# Tester manuellement
+node dist/server/entry.mjs
 
-### 5. Démarrage de l'application
-
-- Cliquer **"Start"** dans hPanel Node.js
-- Vérifier dans **Logs** que la ligne `Zot Ride démarré` apparaît
-
-### 6. Certificat SSL
-
-- Aller dans **hPanel > SSL > Installer Let's Encrypt** pour `zotride.fr`
-- Activer la redirection HTTP → HTTPS
-
-### 7. Première connexion admin
-
-- URL : `https://zotride.fr`
-- Email : `admin@zotride.fr`
-- Mot de passe : `admin123`
-- **CHANGER LE MOT DE PASSE IMMÉDIATEMENT** après la première connexion
+# Vérifier l'API
+curl http://localhost:3000/api/health
+# → {"status":"ok","app":"Zot Ride"}
+```
 
 ---
 
-## Section D : Maintenance
+## Identifiants admin par défaut
 
-| Action           | Procédure                              |
-|------------------|----------------------------------------|
-| Redémarrer       | hPanel > Node.js > **Restart**         |
-| Voir les logs    | hPanel > Node.js > **Logs**            |
-| Mise à jour      | Uploader les nouveaux fichiers > Restart |
+| Email | Mot de passe |
+|-------|-------------|
+| admin@zotride.fr | admin123 |
+
+**⚠️ Changer le mot de passe admin dès la première connexion.**
 
 ---
 
-## Section E : Dépannage
+## Développement local (Mac)
 
-| Symptôme                    | Cause probable                          | Solution                                   |
-|-----------------------------|-----------------------------------------|--------------------------------------------|
-| Erreur 502 Bad Gateway      | Application pas démarrée               | Cliquer **Start** dans hPanel Node.js      |
-| Erreur d'accès à la base DB | Droits insuffisants sur le dossier data | `chmod 755 data/` via SFTP                 |
-| better-sqlite3 échoue       | Version Node.js trop ancienne           | Utiliser Node.js 20+ dans hPanel           |
-| Module not found            | node_modules absent                     | Relancer **Install NPM** dans hPanel       |
-| JWT invalid                 | JWT_SECRET non configuré               | Ajouter la variable d'environnement        |
+```bash
+# Installer les dépendances
+npm install
+
+# Lancer en mode développement (Node 24 avec SQLite intégré)
+npm run dev
+
+# Ou builder et tester le build
+npm run build:mac
+node --experimental-sqlite dist/server/entry.mjs
+```
+
+---
+
+## Maintenance
+
+### Sauvegarde base de données
+```bash
+cp data/zotride.db data/zotride.db.backup
+```
+
+### Mise à jour du code
+1. Modifier le code source sur votre machine
+2. Exécuter `npm run build`
+3. Uploader le nouveau `dist/` + créer un nouveau zip
+4. Remplacer sur Hostinger et redémarrer Node.js
+
+### Redémarrer l'application
+Via **hPanel → Node.js → Restart**
+
+---
+
+## Dépannage
+
+| Problème | Solution |
+|---------|---------|
+| `better-sqlite3` ne compile pas | Vérifier la version Node.js (≥ 20), les build tools Linux |
+| Port déjà utilisé | Vérifier `PORT` dans `.env` |
+| Base de données corrompue | Restaurer depuis la sauvegarde |
+| Token JWT invalide | Vérifier que `JWT_SECRET` est identique après redémarrage |

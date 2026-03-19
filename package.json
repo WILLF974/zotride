@@ -1,24 +1,26 @@
 {
   "name": "zotride",
   "version": "1.0.0",
-  "description": "Zot Ride – Sorties moto Île de la Réunion",
-  "main": "server.js",
+  "type": "module",
   "engines": { "node": ">=20.0.0" },
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --experimental-sqlite server.js",
-    "dev:watch": "nodemon --experimental-sqlite server.js"
+    "dev": "node --experimental-sqlite node_modules/.bin/astro dev",
+    "build": "astro build",
+    "build:mac": "node --experimental-sqlite node_modules/.bin/astro build",
+    "preview": "node --experimental-sqlite dist/server/entry.mjs",
+    "start": "node dist/server/entry.mjs"
   },
   "dependencies": {
+    "@astrojs/node": "^8.3.4",
+    "astro": "^4.16.18",
     "bcryptjs": "^2.4.3",
-    "compression": "^1.7.4",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.1",
-    "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2"
   },
   "optionalDependencies": {
-    "better-sqlite3": "^9.4.3",
-    "nodemon": "^3.0.3"
+    "better-sqlite3": "^9.4.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7"
   }
 }
