@@ -27,9 +27,10 @@ function getSessionId() {
 
 function loadedProfile() {
   return {
-    pseudo:       localStorage.getItem('radar_pseudo') || '',
-    moto_marque:  localStorage.getItem('radar_marque') || '',
-    moto_cylindree: localStorage.getItem('radar_cyl')  || ''
+    pseudo:         localStorage.getItem('radar_pseudo') || '',
+    moto_marque:    localStorage.getItem('radar_marque') || '',
+    moto_cylindree: localStorage.getItem('radar_cyl')    || '',
+    moto_type:      localStorage.getItem('radar_type')   || ''
   };
 }
 
@@ -47,6 +48,7 @@ function saveProfile() {
   localStorage.setItem('radar_pseudo',  pseudo);
   localStorage.setItem('radar_marque',  document.getElementById('rdrMarque').value);
   localStorage.setItem('radar_cyl',     document.getElementById('rdrCylindree').value);
+  localStorage.setItem('radar_type',    document.getElementById('rdrType').value);
 
   renderProfileDisplay();
 }
@@ -64,14 +66,16 @@ function renderProfileDisplay() {
   document.getElementById('rdrPseudo').value      = p.pseudo;
   document.getElementById('rdrMarque').value      = p.moto_marque;
   document.getElementById('rdrCylindree').value   = p.moto_cylindree;
+  document.getElementById('rdrType').value        = p.moto_type;
 
   // Affichage
   const color = sessionColor(getSessionId());
   document.getElementById('profileAvatar').textContent  = p.pseudo[0].toUpperCase();
   document.getElementById('profileAvatar').style.background = color;
   document.getElementById('profileName').textContent    = p.pseudo;
-  document.getElementById('profileMotoTxt').textContent =
-    p.moto_marque ? `${p.moto_marque}${p.moto_cylindree ? ' · ' + p.moto_cylindree + ' cc' : ''}` : 'Moto non renseignée';
+  const motoDesc = [p.moto_marque, p.moto_type, p.moto_cylindree ? p.moto_cylindree + ' cc' : '']
+    .filter(Boolean).join(' · ');
+  document.getElementById('profileMotoTxt').textContent = motoDesc || 'Moto non renseignée';
 
   document.getElementById('profileDisplay').classList.remove('d-none');
   document.getElementById('profileForm').style.display = 'none';
@@ -150,6 +154,7 @@ async function postPosition(lat, lng) {
       pseudo:         p.pseudo,
       moto_marque:    p.moto_marque,
       moto_cylindree: p.moto_cylindree,
+      moto_type:      p.moto_type,
       lat, lng
     })
   });
@@ -254,8 +259,9 @@ function riderIcon(p, isOwn) {
 }
 
 function riderPopup(p, isOwn) {
-  const moto = p.moto_marque
-    ? `<div style="color:#aaa;font-size:.78rem;margin-top:2px">🏍 ${esc(p.moto_marque)}${p.moto_cylindree ? ' · ' + p.moto_cylindree + ' cc' : ''}</div>`
+  const motoParts = [p.moto_marque, p.moto_type, p.moto_cylindree ? p.moto_cylindree + ' cc' : ''].filter(Boolean);
+  const moto = motoParts.length
+    ? `<div style="color:#aaa;font-size:.78rem;margin-top:2px">🏍 ${esc(motoParts.join(' · '))}</div>`
     : '';
   const tag = isOwn ? ' <span style="color:#4cc9f0;font-size:.72rem">(vous)</span>' : '';
   return `<div style="min-width:140px;font-family:sans-serif">
@@ -340,7 +346,7 @@ function updatePanel(positions, sorties) {
         <div class="rider-avatar" style="background:${bg}">${esc(p.pseudo[0].toUpperCase())}</div>
         <div class="flex-grow-1" style="min-width:0">
           <div class="rider-info-name">${esc(p.pseudo)}${isOwn ? ' <span style="color:#4cc9f0;font-size:.7rem">(vous)</span>' : ''}</div>
-          ${p.moto_marque ? `<div class="rider-info-moto">🏍 ${esc(p.moto_marque)}${p.moto_cylindree ? ' · ' + p.moto_cylindree + ' cc' : ''}</div>` : ''}
+          ${[p.moto_marque, p.moto_type, p.moto_cylindree ? p.moto_cylindree+' cc':''].filter(Boolean).length ? `<div class="rider-info-moto">🏍 ${esc([p.moto_marque,p.moto_type,p.moto_cylindree?p.moto_cylindree+' cc':''].filter(Boolean).join(' · '))}</div>` : ''}
         </div>
         <div class="rider-time">${timeSince(p.updated_at)}</div>
       </div>`;
