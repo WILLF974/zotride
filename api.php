@@ -94,14 +94,38 @@ if ($path === 'auth/login' && $method === 'POST') {
     route_groups_join((int)$m[1]);
 } elseif (preg_match('#^groups/(\d+)/leave$#', $path, $m) && $method === 'DELETE') {
     route_groups_leave((int)$m[1]);
+} elseif ($path === 'admin/partners' && $method === 'GET') {
+    route_admin_partners_list();
+} elseif (preg_match('#^admin/partners/(\d+)/validate$#', $path, $m) && $method === 'PUT') {
+    route_admin_partner_validate((int)$m[1]);
+} elseif (preg_match('#^admin/partners/(\d+)/code$#', $path, $m) && $method === 'PUT') {
+    route_admin_partner_regen_code((int)$m[1]);
+} elseif (preg_match('#^admin/partners/(\d+)$#', $path, $m) && $method === 'DELETE') {
+    route_admin_partner_delete((int)$m[1]);
 } elseif ($path === 'partners' && $method === 'GET') {
     route_partners_list();
 } elseif ($path === 'partners' && $method === 'POST') {
     route_partners_create();
-} elseif (preg_match('#^admin/partners/(\d+)/validate$#', $path, $m) && $method === 'PUT') {
-    route_admin_partner_validate((int)$m[1]);
-} elseif (preg_match('#^admin/partners/(\d+)$#', $path, $m) && $method === 'DELETE') {
-    route_admin_partner_delete((int)$m[1]);
+} elseif ($path === 'partners/nearby' && $method === 'GET') {
+    route_partners_nearby();
+} elseif (preg_match('#^partners/(\d+)/offers$#', $path, $m) && $method === 'GET') {
+    route_partner_offers_get((int)$m[1]);
+} elseif (preg_match('#^partners/(\d+)$#', $path, $m) && $method === 'GET') {
+    route_partner_get((int)$m[1]);
+} elseif ($path === 'partner/login' && $method === 'POST') {
+    route_partner_login();
+} elseif ($path === 'partner/me' && $method === 'GET') {
+    route_partner_me_get();
+} elseif ($path === 'partner/me' && $method === 'PUT') {
+    route_partner_me_put();
+} elseif ($path === 'partner/offers' && $method === 'GET') {
+    route_partner_my_offers();
+} elseif ($path === 'partner/offers' && $method === 'POST') {
+    route_partner_offer_create();
+} elseif (preg_match('#^partner/offers/(\d+)$#', $path, $m) && $method === 'PUT') {
+    route_partner_offer_update((int)$m[1]);
+} elseif (preg_match('#^partner/offers/(\d+)$#', $path, $m) && $method === 'DELETE') {
+    route_partner_offer_delete((int)$m[1]);
 } elseif ($path === 'spots' && $method === 'GET') {
     route_spots_list();
 } elseif ($path === 'health' && $method === 'GET') {
@@ -793,6 +817,186 @@ function route_groups_leave(int $id): void {
 // PARTENAIRES
 // ═══════════════════════════════════════════════
 
+// ─── ADMIN : liste partenaires ────────────────
+function route_admin_partners_list(): void {
+    $user = requireAuth();
+    if (roleLevel($user['role']) < 3) jsonError('Accès refusé', 403);
+    $db   = getDb();
+    $rows = $db->query("SELECT * FROM partners ORDER BY validated ASC, created_at DESC")->fetchAll();
+    foreach ($rows as &$r) {
+        $st = $db->prepare("SELECT COUNT(*) FROM partner_offers WHERE partner_id=? AND active=1");
+        $st->execute([$r['id']]);
+        $r['nb_offers'] = (int)$st->fetchColumn();
+    }
+    jsonResponse($rows);
+}
+
+// ─── ADMIN : régénérer code partenaire ───────
+function route_admin_partner_regen_code(int $id): void {
+    $user = requireAuth();
+    if (roleLevel($user['role']) < 3) jsonError('Accès refusé', 403);
+    $db   = getDb();
+    $st   = $db->prepare("SELECT id FROM partners WHERE id=?");
+    $st->execute([$id]);
+    if (!$st->fetch()) jsonError('Partenaire introuvable', 404);
+    $code = generatePartnerCode();
+    $db->prepare("UPDATE partners SET code=? WHERE id=?")->execute([$code, $id]);
+    jsonResponse(['message' => 'Code régénéré', 'code' => $code]);
+}
+
+// ─── PUBLIC : détail partenaire ──────────────
+function route_partner_get(int $id): void {
+    $db = getDb();
+    $st = $db->prepare("SELECT * FROM partners WHERE id=?");
+    $st->execute([$id]);
+    $partner = $st->fetch();
+    if (!$partner) jsonError('Partenaire introuvable', 404);
+    // Offres actives
+    $ost = $db->prepare("SELECT * FROM partner_offers WHERE partner_id=? AND active=1 ORDER BY created_at DESC");
+    $ost->execute([$id]);
+    $partner['offers'] = $ost->fetchAll();
+    // Masquer le code dans la réponse publique
+    unset($partner['code']);
+    jsonResponse($partner);
+}
+
+// ─── PUBLIC : offres d'un partenaire ─────────
+function route_partner_offers_get(int $id): void {
+    $db = getDb();
+    $st = $db->prepare("SELECT * FROM partner_offers WHERE partner_id=? AND active=1 ORDER BY created_at DESC");
+    $st->execute([$id]);
+    jsonResponse($st->fetchAll());
+}
+
+// ─── PUBLIC : partenaires proches ────────────
+function route_partners_nearby(): void {
+    $lat    = (float)($_GET['lat'] ?? 0);
+    $lng    = (float)($_GET['lng'] ?? 0);
+    $radius = (float)($_GET['radius'] ?? 10); // km
+    if (!$lat || !$lng) jsonError('lat et lng requis');
+
+    $db   = getDb();
+    $rows = $db->query("SELECT * FROM partners WHERE validated=1 AND lat IS NOT NULL AND lng IS NOT NULL")->fetchAll();
+
+    $nearby = [];
+    foreach ($rows as $p) {
+        // Haversine
+        $dLat = deg2rad($p['lat'] - $lat);
+        $dLng = deg2rad($p['lng'] - $lng);
+        $a    = sin($dLat/2)**2 + cos(deg2rad($lat)) * cos(deg2rad($p['lat'])) * sin($dLng/2)**2;
+        $dist = 6371 * 2 * asin(sqrt($a));
+        if ($dist <= $radius) {
+            $p['distance_km'] = round($dist, 2);
+            $nearby[] = $p;
+        }
+    }
+    usort($nearby, fn($a, $b) => $a['distance_km'] <=> $b['distance_km']);
+    jsonResponse($nearby);
+}
+
+// ─── PARTENAIRE : connexion par code ──────────
+function route_partner_login(): void {
+    $body = getBody();
+    $code = strtoupper(trim($body['code'] ?? ''));
+    if (!$code) jsonError('Code requis');
+
+    $db = getDb();
+    $st = $db->prepare("SELECT * FROM partners WHERE code=? AND validated=1");
+    $st->execute([$code]);
+    $partner = $st->fetch();
+    if (!$partner) jsonError('Code invalide ou partenaire non validé', 401);
+
+    // Token valide 30 jours
+    $token = jwtEncode(['partner_id' => $partner['id']], 30 * 86400);
+    jsonResponse([
+        'token'   => $token,
+        'partner' => [
+            'id'          => $partner['id'],
+            'nom'         => $partner['nom'],
+            'categorie'   => $partner['categorie'],
+            'description' => $partner['description'],
+            'adresse'     => $partner['adresse'],
+            'telephone'   => $partner['telephone'],
+            'site_web'    => $partner['site_web'],
+            'lat'         => $partner['lat'],
+            'lng'         => $partner['lng'],
+        ],
+    ]);
+}
+
+// ─── PARTENAIRE : profil ──────────────────────
+function route_partner_me_get(): void {
+    $partner = requirePartnerAuth();
+    unset($partner['code']); // Ne pas exposer le code
+    jsonResponse($partner);
+}
+
+function route_partner_me_put(): void {
+    $partner = requirePartnerAuth();
+    $body    = getBody();
+    $desc    = trim($body['description'] ?? '');
+    $adresse = trim($body['adresse'] ?? '');
+    $tel     = trim($body['telephone'] ?? '');
+    $web     = trim($body['site_web'] ?? '');
+    $lat     = isset($body['lat']) ? (float)$body['lat'] : null;
+    $lng     = isset($body['lng']) ? (float)$body['lng'] : null;
+
+    $db = getDb();
+    $db->prepare("UPDATE partners SET description=?, adresse=?, telephone=?, site_web=?, lat=?, lng=? WHERE id=?")
+       ->execute([$desc, $adresse, $tel, $web, $lat, $lng, $partner['id']]);
+    jsonResponse(['message' => 'Profil partenaire mis à jour']);
+}
+
+// ─── PARTENAIRE : offres ─────────────────────
+function route_partner_my_offers(): void {
+    $partner = requirePartnerAuth();
+    $db      = getDb();
+    $st      = $db->prepare("SELECT * FROM partner_offers WHERE partner_id=? ORDER BY created_at DESC");
+    $st->execute([$partner['id']]);
+    jsonResponse($st->fetchAll());
+}
+
+function route_partner_offer_create(): void {
+    $partner = requirePartnerAuth();
+    $body    = getBody();
+    $titre   = trim($body['titre'] ?? '');
+    $desc    = trim($body['description'] ?? '');
+    $type    = trim($body['type'] ?? 'menu');
+    $until   = trim($body['valid_until'] ?? '') ?: null;
+    if (!$titre) jsonError('Titre requis');
+
+    $db = getDb();
+    $db->prepare("INSERT INTO partner_offers (partner_id, titre, description, type, valid_until) VALUES (?,?,?,?,?)")
+       ->execute([$partner['id'], $titre, $desc, $type, $until]);
+    jsonResponse(['message' => 'Offre créée', 'id' => (int)$db->lastInsertId()], 201);
+}
+
+function route_partner_offer_update(int $id): void {
+    $partner = requirePartnerAuth();
+    $body    = getBody();
+    $titre   = trim($body['titre'] ?? '');
+    $desc    = trim($body['description'] ?? '');
+    $type    = trim($body['type'] ?? 'menu');
+    $until   = trim($body['valid_until'] ?? '') ?: null;
+    $active  = isset($body['active']) ? (int)(bool)$body['active'] : 1;
+    if (!$titre) jsonError('Titre requis');
+
+    $db = getDb();
+    $st = $db->prepare("UPDATE partner_offers SET titre=?, description=?, type=?, valid_until=?, active=? WHERE id=? AND partner_id=?");
+    $st->execute([$titre, $desc, $type, $until, $active, $id, $partner['id']]);
+    if ($st->rowCount() === 0) jsonError('Offre introuvable ou non autorisé', 404);
+    jsonResponse(['message' => 'Offre mise à jour']);
+}
+
+function route_partner_offer_delete(int $id): void {
+    $partner = requirePartnerAuth();
+    $db      = getDb();
+    $st      = $db->prepare("DELETE FROM partner_offers WHERE id=? AND partner_id=?");
+    $st->execute([$id, $partner['id']]);
+    if ($st->rowCount() === 0) jsonError('Offre introuvable ou non autorisé', 404);
+    jsonResponse(['message' => 'Offre supprimée']);
+}
+
 function route_partners_list(): void {
     requireAuth();
     $db = getDb();
@@ -820,8 +1024,17 @@ function route_admin_partner_validate(int $id): void {
     $user = requireAuth();
     if (roleLevel($user['role']) < 3) jsonError('Accès refusé', 403);
     $db = getDb();
-    $db->prepare("UPDATE partners SET validated=1 WHERE id=?")->execute([$id]);
-    jsonResponse(['message' => 'Partenaire validé']);
+    $st = $db->prepare("SELECT * FROM partners WHERE id=?");
+    $st->execute([$id]);
+    $partner = $st->fetch();
+    if (!$partner) jsonError('Partenaire introuvable', 404);
+    // Générer un code unique si pas déjà défini
+    $code = $partner['code'];
+    if (!$code) {
+        $code = generatePartnerCode();
+    }
+    $db->prepare("UPDATE partners SET validated=1, code=? WHERE id=?")->execute([$code, $id]);
+    jsonResponse(['message' => 'Partenaire validé', 'code' => $code]);
 }
 
 function route_admin_partner_delete(int $id): void {

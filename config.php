@@ -160,6 +160,34 @@ function initDb(PDO $db): void {
         created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+    // ── Colonnes supplémentaires partners ───────
+    // lat, lng, code (ajout conditionnel si absent)
+    $partnerCols = $db->query("SHOW COLUMNS FROM partners")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('lat', $partnerCols)) {
+        $db->exec("ALTER TABLE partners ADD COLUMN lat DOUBLE DEFAULT NULL");
+    }
+    if (!in_array('lng', $partnerCols)) {
+        $db->exec("ALTER TABLE partners ADD COLUMN lng DOUBLE DEFAULT NULL");
+    }
+    if (!in_array('code', $partnerCols)) {
+        $db->exec("ALTER TABLE partners ADD COLUMN code VARCHAR(20) DEFAULT NULL");
+        try { $db->exec("ALTER TABLE partners ADD UNIQUE KEY uq_partner_code (code)"); } catch (\Exception $e) { /* ignore si déjà là */ }
+    }
+
+    // ── Offres partenaires ────────────────────────
+    $db->exec("CREATE TABLE IF NOT EXISTS partner_offers (
+        id          INT AUTO_INCREMENT PRIMARY KEY,
+        partner_id  INT NOT NULL,
+        titre       VARCHAR(200) NOT NULL,
+        description TEXT,
+        type        VARCHAR(50) DEFAULT 'menu',
+        valid_until DATETIME DEFAULT NULL,
+        active      TINYINT(1) DEFAULT 1,
+        created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT fk_offer_partner FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
     // ── Points de vue & Spots ────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS spots (
         id          INT AUTO_INCREMENT PRIMARY KEY,
@@ -214,10 +242,42 @@ function initDb(PDO $db): void {
     }
 }
 
+// ── Helpers Partenaires ───────────────────────
+function generatePartnerCode(): string {
+    $db    = getDb();
+    $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    do {
+        $code = 'ZR-';
+        for ($i = 0; $i < 6; $i++) $code .= $chars[random_int(0, strlen($chars) - 1)];
+        $st = $db->prepare("SELECT id FROM partners WHERE code=?");
+        $st->execute([$code]);
+    } while ($st->fetch()); // Réessayer si collision
+    return $code;
+}
+
+function requirePartnerAuth(): array {
+    $header = $_SERVER['HTTP_AUTHORIZATION']
+           ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+           ?? '';
+    if (!$header && function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        $header  = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    }
+    if (!preg_match('/^Bearer\s+(\S+)$/i', $header, $m)) jsonError('Non authentifié', 401);
+    $payload = jwtDecode($m[1]);
+    if (!$payload || !isset($payload['partner_id'])) jsonError('Token partenaire invalide', 401);
+    $db = getDb();
+    $st = $db->prepare("SELECT * FROM partners WHERE id=? AND validated=1");
+    $st->execute([$payload['partner_id']]);
+    $partner = $st->fetch();
+    if (!$partner) jsonError('Partenaire introuvable', 401);
+    return $partner;
+}
+
 // ── JWT (implémentation pure PHP) ─────────────
-function jwtEncode(array $payload): string {
+function jwtEncode(array $payload, int $ttl = 7 * 86400): string {
     $header  = base64url_encode(json_encode(['alg'=>'HS256','typ'=>'JWT']));
-    $payload['exp'] = time() + 7 * 86400;
+    $payload['exp'] = time() + $ttl;
     $pl      = base64url_encode(json_encode($payload));
     $sig     = base64url_encode(hash_hmac('sha256', "$header.$pl", JWT_SECRET, true));
     return "$header.$pl.$sig";

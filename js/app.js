@@ -77,6 +77,16 @@ function showPage(page) {
     showPage('dashboard');
     return;
   }
+  // Pages partenaires accessibles sans être connecté motard
+  if (page === 'partner-login' || page === 'partner-dashboard') {
+    document.querySelectorAll('.page, .auth-page').forEach(el => el.classList.add('d-none'));
+    const el = document.getElementById('page-' + page);
+    if (el) el.classList.remove('d-none');
+    currentPage = page;
+    window.scrollTo(0, 0);
+    if (page === 'partner-dashboard') loadPartnerDashboard();
+    return;
+  }
   document.querySelectorAll('.page, .auth-page').forEach(el => el.classList.add('d-none'));
 
   const el = document.getElementById('page-' + page);

@@ -6,8 +6,9 @@ const REUNION = { center: [-21.1151, 55.5364], zoom: 11 };
 const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
-let createMap = null;
-let detailMap  = null;
+let createMap         = null;
+let detailMap         = null;
+let partnerMarkers    = [];
 
 // Création sortie
 let waypoints      = [];
@@ -183,10 +184,37 @@ document.addEventListener('click', e => {
 let participantMarkers = {};   // pseudo → L.Marker
 let locationPollTimer  = null;
 
+// ── Marqueurs partenaires sur carte détail ────────────────────
+function addPartnerMarkersToDetailMap(partners) {
+  if (!detailMap) return;
+  // Nettoyer anciens marqueurs partenaires
+  partnerMarkers.forEach(m => detailMap.removeLayer(m));
+  partnerMarkers = [];
+
+  const catIcons = { resto:'🍽️', mecano:'🔧', concessionnaire:'🏍️', station:'⛽', autre:'🏪' };
+  partners.forEach(p => {
+    if (!p.lat || !p.lng) return;
+    const emoji = catIcons[p.categorie] || catIcons.autre;
+    const icon  = L.divIcon({
+      className: '',
+      html: `<div style="background:#1a1a1a;border:2px solid #f4a261;border-radius:8px;padding:2px 5px;font-size:.75rem;white-space:nowrap;color:#f4a261;font-weight:700">${emoji} ${sanitize(p.nom.split(' ').slice(0,2).join(' '))}</div>`,
+      iconAnchor: [0, 0]
+    });
+    const marker = L.marker([p.lat, p.lng], { icon })
+      .addTo(detailMap)
+      .bindPopup(`<strong style="color:#f4a261">${sanitize(p.nom)}</strong><br><small>${sanitize(p.adresse||'')}</small>`)
+      .on('click', () => {
+        if (typeof openPartnerDetail === 'function') openPartnerDetail(p.id);
+      });
+    partnerMarkers.push(marker);
+  });
+}
+
 function initDetailMap(wps) {
   stopLocationPolling();
   if (detailMap) { detailMap.remove(); detailMap = null; }
   participantMarkers = {};
+  partnerMarkers = [];
 
   setTimeout(() => {
     detailMap = L.map('detail-map').setView(REUNION.center, REUNION.zoom);

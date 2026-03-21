@@ -138,6 +138,17 @@ async function viewSortie(id) {
 
     // Init map
     initDetailMap(s.waypoints);
+
+    // Partenaires proches du point de rassemblement
+    const rally = s.waypoints && s.waypoints.find(w => w.is_rassemblement);
+    if (rally) {
+      try {
+        const nearby = await api(`/partners/nearby?lat=${rally.lat}&lng=${rally.lng}&radius=15`);
+        if (nearby && nearby.length && typeof addPartnerMarkersToDetailMap === 'function') {
+          addPartnerMarkersToDetailMap(nearby);
+        }
+      } catch { /* non-bloquant */ }
+    }
   } catch (err) {
     document.getElementById('detail-loading').innerHTML =
       `<p class="text-danger">Erreur : ${sanitize(err.message)}</p>`;

@@ -58,10 +58,12 @@ function showAdminTab(tab, el) {
   document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
 
-  document.getElementById('admin-tab-users').style.display  = tab === 'users'  ? 'block' : 'none';
-  document.getElementById('admin-tab-sorties').style.display = tab === 'sorties' ? 'block' : 'none';
+  document.getElementById('admin-tab-users').style.display    = tab === 'users'    ? 'block' : 'none';
+  document.getElementById('admin-tab-sorties').style.display  = tab === 'sorties'  ? 'block' : 'none';
+  document.getElementById('admin-tab-partners').style.display = tab === 'partners' ? 'block' : 'none';
 
-  if (tab === 'sorties') loadAdminSorties();
+  if (tab === 'sorties')  loadAdminSorties();
+  if (tab === 'partners') loadAdminPartners();
 }
 
 // ── Utilisateurs ──────────────────────────────────────────────
@@ -236,6 +238,120 @@ async function adminDeleteSortie(id, titre) {
     showToast('Sortie supprimée');
     loadAdminSorties();
     loadAdminStats();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// ── Partenaires (admin) ───────────────────────────────────────
+let adminPartners = [];
+let partnersFilter = 'all';
+
+async function loadAdminPartners() {
+  const list = document.getElementById('admin-partners-list');
+  if (!list) return;
+  list.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+  try {
+    adminPartners = await api('/admin/partners');
+    const pending = adminPartners.filter(p => !p.validated).length;
+    const badge = document.getElementById('pending-partners-badge');
+    if (badge) {
+      badge.textContent = pending;
+      badge.style.display = pending > 0 ? '' : 'none';
+    }
+    renderAdminPartners(adminPartners, partnersFilter);
+  } catch (err) {
+    list.innerHTML = `<p class="text-danger">Erreur : ${sanitize(err.message)}</p>`;
+  }
+}
+
+function filterPartners(filter) {
+  partnersFilter = filter;
+  renderAdminPartners(adminPartners, filter);
+}
+
+function renderAdminPartners(partners, filter) {
+  const list = document.getElementById('admin-partners-list');
+  if (!list) return;
+  let filtered = partners;
+  if (filter === 'pending')   filtered = partners.filter(p => !p.validated);
+  if (filter === 'validated') filtered = partners.filter(p => !!p.validated);
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><i class="fas fa-handshake"></i>
+      <p>Aucun partenaire${filter !== 'all' ? ' dans cette catégorie' : ''}</p></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(p => {
+    const isPending = !p.validated;
+    const codeHtml  = p.code
+      ? `<span class="partner-code" title="Code de connexion">${sanitize(p.code)}</span>
+         <button class="btn btn-xs btn-outline-secondary ms-1" onclick="copyPartnerCode('${sanitize(p.code)}')" title="Copier">
+           <i class="fas fa-copy"></i>
+         </button>`
+      : `<span class="badge-pending">En attente</span>`;
+
+    return `
+    <div class="user-row ${isPending ? 'pending' : ''}">
+      <div>
+        <strong>${sanitize(p.nom)}</strong>
+        <div class="d-flex align-items-center gap-2 mt-1 flex-wrap">
+          <span class="badge bg-secondary">${sanitize(p.categorie)}</span>
+          ${isPending ? '<span class="badge-pending">En attente</span>' : '<span class="badge bg-success">Validé</span>'}
+          ${p.nb_offers ? `<span class="badge bg-info text-dark">${p.nb_offers} offre${p.nb_offers>1?'s':''}</span>` : ''}
+        </div>
+        <div class="text-muted small mt-1">${sanitize(p.adresse || '')} ${sanitize(p.telephone || '')}</div>
+        ${!isPending ? `<div class="mt-1 d-flex align-items-center gap-1">${codeHtml}</div>` : ''}
+        <div class="text-muted small">Inscrit le ${new Date(p.created_at).toLocaleDateString('fr-FR')}</div>
+      </div>
+      <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        ${isPending ? `
+          <button class="btn btn-success btn-sm" onclick="adminValidatePartner(${p.id})">
+            <i class="fas fa-check me-1"></i>Valider
+          </button>` : `
+          <button class="btn btn-sm btn-outline-warning" onclick="adminRegenPartnerCode(${p.id})" title="Régénérer le code">
+            <i class="fas fa-sync-alt me-1"></i>Regen code
+          </button>`}
+        <button class="btn btn-outline-danger btn-sm" onclick="adminDeletePartner(${p.id}, '${sanitize(p.nom)}')" title="Supprimer">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function copyPartnerCode(code) {
+  navigator.clipboard.writeText(code).then(() => showToast('Code copié : ' + code));
+}
+
+async function adminValidatePartner(id) {
+  try {
+    const data = await api(`/admin/partners/${id}/validate`, 'PUT');
+    showToast(`Partenaire validé — Code : ${data.code}`);
+    loadAdminPartners();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function adminRegenPartnerCode(id) {
+  if (!confirm('Régénérer le code de connexion partenaire ?')) return;
+  try {
+    const data = await api(`/admin/partners/${id}/code`, 'PUT');
+    showToast(`Nouveau code : ${data.code}`);
+    loadAdminPartners();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function adminDeletePartner(id, nom) {
+  if (!confirm(`Supprimer le partenaire "${nom}" ?`)) return;
+  try {
+    await api(`/admin/partners/${id}`, 'DELETE');
+    showToast('Partenaire supprimé');
+    loadAdminPartners();
   } catch (err) {
     showToast(err.message, 'error');
   }

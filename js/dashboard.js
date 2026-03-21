@@ -245,7 +245,7 @@ function renderPartners(partners) {
     html += `<div class="db-partner-section">
       <div class="db-partner-cat-row"><div class="cat-icon"><i class="fas ${cfg.icon}"></i></div>${cfg.label}</div>
       <div class="db-partner-grid">${grouped[cat].map(p => `
-        <div class="db-partner-box" title="${sanitize(p.description||p.nom)}">
+        <div class="db-partner-box" title="${sanitize(p.description||p.nom)}" onclick="openPartnerDetail(${p.id})" style="cursor:pointer">
           <div class="db-partner-logo-box">${partnerLogoHtml(p.nom)}</div>
           <div class="db-partner-pname">${sanitize(p.nom.split(' ').slice(-2).join(' '))}</div>
         </div>`).join('')}
@@ -321,6 +321,74 @@ async function leaveGroup(id, nom) {
     showToast('Vous avez quitté le groupe');
     loadDashboard();
   } catch (err) { showToast(err.message,'error'); }
+}
+
+let _partnerDetailMap = null;
+
+async function openPartnerDetail(id) {
+  try {
+    const p = await api(`/partners/${id}`);
+    const modal = document.getElementById('modalPartnerDetail');
+    if (!modal) return;
+
+    // Avatar coloré
+    const hue  = p.nom.split('').reduce((a,c) => a + c.charCodeAt(0), 0) % 360;
+    const abbr = p.nom.split(' ').filter(w => w.length > 1).slice(0,2).map(w => w[0].toUpperCase()).join('');
+    document.getElementById('pd-avatar').innerHTML =
+      `<div style="width:64px;height:64px;border-radius:12px;background:hsl(${hue},30%,18%);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;color:hsl(${hue},50%,65%)">${abbr}</div>`;
+    document.getElementById('pd-nom').textContent       = p.nom;
+    document.getElementById('pd-categorie').textContent = PARTNER_CATS[p.categorie]?.label || p.categorie;
+    document.getElementById('pd-desc').textContent      = p.description || '';
+    document.getElementById('pd-adresse').textContent   = p.adresse || '';
+    document.getElementById('pd-tel').textContent       = p.telephone || '';
+    const webEl = document.getElementById('pd-web');
+    if (p.site_web) {
+      webEl.href        = p.site_web.startsWith('http') ? p.site_web : 'https://' + p.site_web;
+      webEl.textContent = p.site_web;
+      webEl.style.display = '';
+    } else {
+      webEl.style.display = 'none';
+    }
+
+    // Offres
+    const offersEl = document.getElementById('pd-offers');
+    if (p.offers && p.offers.length) {
+      offersEl.innerHTML = p.offers.map(o => {
+        const typeColors = { menu:'#2d9e43', promo:'#e63946', event:'#f4a261', autre:'#888' };
+        const typeColor  = typeColors[o.type] || typeColors.autre;
+        const expiry     = o.valid_until ? `<small style="color:#888"> · Valable jusqu'au ${new Date(o.valid_until).toLocaleDateString('fr-FR')}</small>` : '';
+        return `<div class="offer-card">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="offer-type-badge" style="background:${typeColor}">${sanitize(o.type)}</span>
+            <strong style="color:#e2e2e2">${sanitize(o.titre)}</strong>
+          </div>
+          <p style="color:#aaa;font-size:.85rem;margin:0">${sanitize(o.description || '')}${expiry}</p>
+        </div>`;
+      }).join('');
+    } else {
+      offersEl.innerHTML = '<p class="text-muted small">Aucune offre active</p>';
+    }
+
+    // Mini-carte si coordonnées
+    const mapWrap = document.getElementById('pd-map-wrap');
+    if (p.lat && p.lng) {
+      mapWrap.style.display = 'block';
+      // Détruire ancienne carte
+      if (_partnerDetailMap) { _partnerDetailMap.remove(); _partnerDetailMap = null; }
+      setTimeout(() => {
+        _partnerDetailMap = L.map('pd-map', { zoomControl:false, attributionControl:false }).setView([p.lat, p.lng], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:18 }).addTo(_partnerDetailMap);
+        const icon = L.divIcon({ className:'', html:`<div style="background:#e63946;border:2px solid #fff;border-radius:50%;width:12px;height:12px"></div>`, iconSize:[12,12], iconAnchor:[6,6] });
+        L.marker([p.lat, p.lng], { icon }).addTo(_partnerDetailMap).bindPopup(sanitize(p.nom)).openPopup();
+      }, 200);
+    } else {
+      mapWrap.style.display = 'none';
+    }
+
+    new bootstrap.Modal(modal).show();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 function showPartnerModal() {
