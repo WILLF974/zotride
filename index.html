@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/style.css?v=4">
 </head>
 <body>
 
@@ -161,104 +161,113 @@
 
     <!-- ══ DASHBOARD (Accueil) ══════════════════════════════════ -->
     <div class="page d-none" id="page-dashboard">
-
-      <!-- Barre de recherche + bouton créer -->
-      <div class="mb-3" id="db-search-wrap">
-        <div class="input-group">
-          <span class="input-group-text"><i class="fas fa-search"></i></span>
-          <input type="text" id="db-search" class="form-control"
-            placeholder="Rechercher une sortie, un spot, un partenaire..."
-            oninput="searchDashboard(this.value)" autocomplete="off">
-          <button class="btn btn-primary" onclick="showPage('create-sortie')">
-            <i class="fas fa-plus me-1"></i><span class="d-none d-sm-inline">Créer une sortie</span>
-          </button>
-        </div>
-        <div id="db-search-results" class="city-results" style="display:none"></div>
-      </div>
-
-      <!-- Grille 3 colonnes -->
       <div class="row g-3">
 
-        <!-- ── GAUCHE : Mes sorties + Spots ── -->
-        <div class="col-lg-3 order-2 order-lg-1">
+        <!-- ══ GAUCHE col-lg-4 : Sorties + Spots ══ -->
+        <div class="col-lg-4 order-2 order-lg-1">
 
           <!-- Mes Prochaines Sorties -->
           <div class="widget-card mb-3">
             <div class="widget-header">
               <div>
                 <h6 class="widget-title">MES PROCHAINES SORTIES</h6>
-                <p class="widget-sub">Sorties où tu es inscrit ou organisateur</p>
+                <p class="widget-sub">Toutes les sorties sur tites programmées</p>
               </div>
               <a href="#" onclick="showPage('sorties'); return false;" class="widget-link">Voir tout</a>
             </div>
-            <div id="db-my-sorties">
-              <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+            <!-- Horizontal scroll de cards -->
+            <div id="db-my-sorties" class="db-sorties-scroll">
+              <div class="text-center py-3 w-100"><div class="spinner-border spinner-border-sm text-primary"></div></div>
             </div>
           </div>
 
           <!-- Points de Vue & Spots -->
           <div class="widget-card">
-            <div class="widget-header">
+            <div class="widget-header mb-2">
               <div>
                 <h6 class="widget-title">POINTS DE VUE &amp; SPOTS</h6>
-                <p class="widget-sub">Points de vues à La Réunion</p>
+                <p class="widget-sub">Interactive points de vuts à La Réunion</p>
               </div>
-              <i class="fas fa-map-marker-alt text-primary"></i>
+              <i class="fas fa-map-marker-alt text-primary fs-5"></i>
             </div>
-            <div id="db-spots-map" style="height:210px; border-radius:8px; margin-bottom:.65rem;"></div>
-            <div id="db-spots-list"></div>
+            <!-- Carte à gauche + liste à droite -->
+            <div class="db-spots-inner">
+              <div id="db-spots-map" class="db-spots-map-mini"></div>
+              <div id="db-spots-list" class="db-spots-list-side"></div>
+            </div>
           </div>
 
         </div><!-- /GAUCHE -->
 
-        <!-- ── CENTRE : Zot'Flux ── -->
-        <div class="col-lg-6 order-1 order-lg-2">
+        <!-- ══ CENTRE col-lg-5 : Recherche + Créer + Flux ══ -->
+        <div class="col-lg-5 order-1 order-lg-2">
+
+          <!-- Barre recherche -->
+          <div class="db-search-wrap mb-2" id="db-search-wrap">
+            <div class="input-group db-searchbar">
+              <input type="text" id="db-search" class="form-control"
+                placeholder="Rechercher des sortis, des partenaires ou des points de vue..."
+                oninput="searchDashboard(this.value)" autocomplete="off">
+              <button class="btn db-search-btn" type="button">
+                <i class="fas fa-search"></i>
+              </button>
+            </div>
+            <div id="db-search-results" class="city-results" style="display:none"></div>
+          </div>
+
+          <!-- Bouton créer -->
+          <button class="btn btn-primary w-100 db-create-btn mb-3" onclick="showPage('create-sortie')">
+            <i class="fas fa-plus me-2"></i>CRÉER UNE NOUVELLE SORTIE
+          </button>
+
+          <!-- Zot'Flux -->
           <div class="widget-card">
-            <div class="widget-header">
+            <div class="widget-header mb-0">
               <div>
                 <h6 class="widget-title">ZOT'FLUX</h6>
-                <p class="widget-sub">Le fil d'actualité de la communauté</p>
+                <p class="widget-sub">Un dynamiome (Community Feed)</p>
               </div>
             </div>
             <div id="db-flux">
-              <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+              <div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></div>
             </div>
           </div>
+
         </div><!-- /CENTRE -->
 
-        <!-- ── DROITE : Groupes + Partenaires ── -->
+        <!-- ══ DROITE col-lg-3 : Groupes + Partenaires ══ -->
         <div class="col-lg-3 order-3">
 
           <!-- Mes Groupes -->
           <div class="widget-card mb-3">
-            <div class="widget-header">
+            <div class="widget-header mb-2">
               <div>
-                <h6 class="widget-title">MES GROUPES</h6>
-                <p class="widget-sub">Tes groupes de motards</p>
+                <h6 class="widget-title"><i class="fas fa-users me-1 text-primary"></i>MES GROUPES</h6>
+                <p class="widget-sub">Toutes les motorcycles des groupes</p>
               </div>
             </div>
             <div id="db-groups">
               <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>
             </div>
-            <button class="btn btn-outline-primary btn-sm w-100 mt-2" onclick="showCreateGroupModal()">
-              <i class="fas fa-plus me-1"></i>Créer un groupe
+            <button class="btn db-group-create-btn w-100 mt-3" onclick="showCreateGroupModal()">
+              CRÉER UN GROUPE
             </button>
           </div>
 
-          <!-- Partenaires Commerciaux -->
+          <!-- Partenaires -->
           <div class="widget-card">
-            <div class="widget-header">
+            <div class="widget-header mb-2">
               <div>
                 <h6 class="widget-title">NOS PARTENAIRES COMMERCIAUX</h6>
-                <p class="widget-sub">Tous nos partenaires</p>
+                <p class="widget-sub">Touts nos partenaires commerciaux</p>
               </div>
               <i class="fas fa-mobile-alt text-muted"></i>
             </div>
             <div id="db-partners">
               <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>
             </div>
-            <button class="btn btn-outline-secondary btn-sm w-100 mt-2" onclick="showPartnerModal()">
-              <i class="fas fa-handshake me-1"></i>Inscription Partenaire
+            <button class="btn db-partner-inscription-btn w-100 mt-2" onclick="showPartnerModal()">
+              INSCRIPTION PARTENAIRE
             </button>
           </div>
 
@@ -525,6 +534,20 @@
 
   </main>
 
+  <!-- ══ FOOTER ════════════════════════════════════════════════ -->
+  <footer class="site-footer" id="mainFooter" style="display:none">
+    <div class="footer-inner">
+      <span class="footer-date">Date actualisé to current <span id="footer-year"></span></span>
+      <div class="footer-links">
+        <a href="#" onclick="showPartnerModal(); return false;">Devenir Partenaire</a>
+        <a href="#">À propos</a>
+        <a href="#" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+        <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+        <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+      </div>
+    </div>
+  </footer>
+
   <!-- Toast -->
   <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999">
     <div id="toast" class="toast text-white border-0" role="alert">
@@ -619,6 +642,6 @@
   <script src="/js/map.js?v=3"></script>
   <script src="/js/sorties.js?v=3"></script>
   <script src="/js/admin.js?v=3"></script>
-  <script src="/js/dashboard.js?v=1"></script>
+  <script src="/js/dashboard.js?v=2"></script>
 </body>
 </html>
