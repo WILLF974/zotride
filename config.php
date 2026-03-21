@@ -3,13 +3,16 @@
 //  config.php – Configuration centrale Zot Ride
 // ─────────────────────────────────────────────
 
-// Chargement .env simple
-if (file_exists(__DIR__ . '/.env')) {
-    foreach (file(__DIR__ . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-        if (strpos($line, '#') === 0) continue;
-        if (strpos($line, '=') === false) continue;
-        [$k, $v] = explode('=', $line, 2);
-        $_ENV[trim($k)] = trim($v);
+// Chargement .env (.env.local prioritaire sur .env)
+foreach ([__DIR__ . '/.env.local', __DIR__ . '/.env'] as $envFile) {
+    if (file_exists($envFile)) {
+        foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+            if (strpos($line, '#') === 0) continue;
+            if (strpos($line, '=') === false) continue;
+            [$k, $v] = explode('=', $line, 2);
+            if (!isset($_ENV[trim($k)])) $_ENV[trim($k)] = trim($v);
+        }
+        break; // Arrêt dès le premier fichier trouvé
     }
 }
 
