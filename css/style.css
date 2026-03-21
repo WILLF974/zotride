@@ -27,6 +27,9 @@ body {
 a { color: var(--accent); text-decoration: none; }
 a:hover { color: #fff; }
 
+/* Surcharge Bootstrap text-muted pour notre thème sombre */
+.text-muted { color: var(--text-muted) !important; }
+
 /* ============================================================
    NAVBAR
    ============================================================ */
