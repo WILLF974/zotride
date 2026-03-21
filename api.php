@@ -652,10 +652,12 @@ function route_radar_sorties(): void {
     $db  = getDb();
     $today = date('Y-m-d');
     $rows = $db->prepare("
-        SELECT s.id,s.titre,s.date,s.heure,
+        SELECT s.id, s.titre, s.date, s.heure, s.nb_max_participants,
             (SELECT COUNT(*) FROM participants WHERE sortie_id=s.id) as nb_participants,
-            w.lat,w.lng,w.nom as rassemblement
+            u.pseudo as organisateur,
+            w.lat as rally_lat, w.lng as rally_lng, w.nom as rally_nom
         FROM sorties s
+        LEFT JOIN users u ON u.id=s.created_by
         LEFT JOIN waypoints w ON w.sortie_id=s.id AND w.is_rassemblement=1
         WHERE s.date=? AND s.status='active'
         ORDER BY s.heure
