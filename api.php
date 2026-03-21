@@ -623,7 +623,7 @@ function route_radar_positions(): void {
 
 function route_radar_position_post(): void {
     $body      = getBody();
-    $sessionId = trim($body['sessionId'] ?? '');
+    $sessionId = trim($body['session_id'] ?? $body['sessionId'] ?? '');
     $pseudo    = trim($body['pseudo'] ?? '');
     $lat       = (float)($body['lat'] ?? 0);
     $lng       = (float)($body['lng'] ?? 0);
@@ -640,7 +640,7 @@ function route_radar_position_post(): void {
 
 function route_radar_position_delete(): void {
     $body      = getBody();
-    $sessionId = trim($body['sessionId'] ?? '');
+    $sessionId = trim($body['session_id'] ?? $body['sessionId'] ?? '');
     if (!$sessionId) jsonError('sessionId requis');
 
     $db = getDb();
