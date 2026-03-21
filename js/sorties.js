@@ -161,7 +161,7 @@ async function deleteSortie() {
   try {
     await api(`/sorties/${currentSortieId}`, 'DELETE');
     showToast('Sortie supprimée');
-    showPage('dashboard');
+    showPage('sorties');
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -187,7 +187,7 @@ async function createSortie(e) {
     showToast('Sortie publiée ! Les membres ont été notifiés.');
     document.getElementById('sortieForm').reset();
     clearWaypoints();
-    showPage('dashboard');
+    showPage('sorties');
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.remove('d-none');

@@ -82,6 +82,28 @@ if ($path === 'auth/login' && $method === 'POST') {
     route_radar_position_delete();
 } elseif ($path === 'radar/sorties' && $method === 'GET') {
     route_radar_sorties();
+} elseif ($path === 'dashboard' && $method === 'GET') {
+    route_dashboard();
+} elseif ($path === 'groups' && $method === 'GET') {
+    route_groups_list();
+} elseif ($path === 'groups' && $method === 'POST') {
+    route_groups_create();
+} elseif (preg_match('#^groups/(\d+)$#', $path, $m) && $method === 'DELETE') {
+    route_groups_delete((int)$m[1]);
+} elseif (preg_match('#^groups/(\d+)/join$#', $path, $m) && $method === 'POST') {
+    route_groups_join((int)$m[1]);
+} elseif (preg_match('#^groups/(\d+)/leave$#', $path, $m) && $method === 'DELETE') {
+    route_groups_leave((int)$m[1]);
+} elseif ($path === 'partners' && $method === 'GET') {
+    route_partners_list();
+} elseif ($path === 'partners' && $method === 'POST') {
+    route_partners_create();
+} elseif (preg_match('#^admin/partners/(\d+)/validate$#', $path, $m) && $method === 'PUT') {
+    route_admin_partner_validate((int)$m[1]);
+} elseif (preg_match('#^admin/partners/(\d+)$#', $path, $m) && $method === 'DELETE') {
+    route_admin_partner_delete((int)$m[1]);
+} elseif ($path === 'spots' && $method === 'GET') {
+    route_spots_list();
 } elseif ($path === 'health' && $method === 'GET') {
     jsonResponse(['status' => 'ok', 'app' => 'Zot Ride']);
 } else {
@@ -616,4 +638,206 @@ function route_radar_sorties(): void {
     ");
     $rows->execute([$today]);
     jsonResponse($rows->fetchAll());
+}
+
+// ═══════════════════════════════════════════════
+// DASHBOARD (données agrégées)
+// ═══════════════════════════════════════════════
+
+function route_dashboard(): void {
+    $user = requireAuth();
+    $db   = getDb();
+    $uid  = $user['id'];
+    $today = date('Y-m-d');
+
+    // Mes prochaines sorties (organisateur ou participant, 30 jours)
+    $st = $db->prepare("
+        SELECT s.id, s.titre, s.description, s.date, s.heure, s.nb_max_participants,
+               u.pseudo as organisateur,
+               (SELECT COUNT(*) FROM participants WHERE sortie_id=s.id) as nb_participants,
+               (SELECT COUNT(*) FROM participants WHERE sortie_id=s.id AND user_id=?) as is_participant
+        FROM sorties s
+        JOIN users u ON u.id=s.created_by
+        WHERE s.status='active' AND s.date >= ?
+          AND (s.created_by=? OR EXISTS(SELECT 1 FROM participants WHERE sortie_id=s.id AND user_id=?))
+        ORDER BY s.date ASC, s.heure ASC
+        LIMIT 5
+    ");
+    $st->execute([$uid, $today, $uid, $uid]);
+    $myNextSorties = $st->fetchAll();
+
+    // Toutes les sorties à venir (pour le flux)
+    $st2 = $db->prepare("
+        SELECT s.id, s.titre, s.date, s.heure, s.nb_max_participants,
+               u.pseudo as organisateur,
+               (SELECT COUNT(*) FROM participants WHERE sortie_id=s.id) as nb_participants
+        FROM sorties s
+        JOIN users u ON u.id=s.created_by
+        WHERE s.status='active' AND s.date >= ?
+        ORDER BY s.date ASC
+        LIMIT 10
+    ");
+    $st2->execute([$today]);
+    $allSorties = $st2->fetchAll();
+
+    // Mes groupes
+    $st3 = $db->prepare("
+        SELECT g.id, g.nom, g.description,
+               (SELECT COUNT(*) FROM group_members WHERE group_id=g.id) as nb_membres,
+               gm.role as my_role
+        FROM `groups` g
+        JOIN group_members gm ON gm.group_id=g.id AND gm.user_id=?
+        ORDER BY g.nom ASC
+    ");
+    $st3->execute([$uid]);
+    $myGroups = $st3->fetchAll();
+
+    // Partenaires validés
+    $partners = $db->query("SELECT * FROM partners WHERE validated=1 ORDER BY categorie, nom")->fetchAll();
+
+    // Spots
+    $spots = $db->query("SELECT * FROM spots ORDER BY type, nom")->fetchAll();
+
+    // Activité récente (dernières sorties créées + derniers inscrits)
+    $st4 = $db->prepare("
+        SELECT 'sortie' as type, s.id, s.titre as label, u.pseudo as actor, s.created_at as ts
+        FROM sorties s JOIN users u ON u.id=s.created_by
+        WHERE s.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        UNION ALL
+        SELECT 'join' as type, p.sortie_id as id, s.titre as label, u.pseudo as actor, p.joined_at as ts
+        FROM participants p
+        JOIN sorties s ON s.id=p.sortie_id
+        JOIN users u ON u.id=p.user_id
+        WHERE p.joined_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        ORDER BY ts DESC
+        LIMIT 15
+    ");
+    $st4->execute();
+    $recentActivity = $st4->fetchAll();
+
+    jsonResponse(compact('myNextSorties','allSorties','myGroups','partners','spots','recentActivity'));
+}
+
+// ═══════════════════════════════════════════════
+// GROUPES
+// ═══════════════════════════════════════════════
+
+function route_groups_list(): void {
+    $user = requireAuth();
+    $db   = getDb();
+    $st = $db->prepare("
+        SELECT g.id, g.nom, g.description,
+               (SELECT COUNT(*) FROM group_members WHERE group_id=g.id) as nb_membres,
+               (SELECT COUNT(*) FROM group_members WHERE group_id=g.id AND user_id=?) as is_member,
+               gm.role as my_role
+        FROM `groups` g
+        LEFT JOIN group_members gm ON gm.group_id=g.id AND gm.user_id=?
+        ORDER BY g.nom ASC
+    ");
+    $st->execute([$user['id'], $user['id']]);
+    jsonResponse($st->fetchAll());
+}
+
+function route_groups_create(): void {
+    $user = requireAuth();
+    $body = getBody();
+    $nom  = trim($body['nom'] ?? '');
+    $desc = trim($body['description'] ?? '');
+    if (!$nom) jsonError('Nom du groupe requis');
+
+    $db = getDb();
+    $db->prepare("INSERT INTO `groups` (nom, description, created_by) VALUES (?,?,?)")
+       ->execute([$nom, $desc, $user['id']]);
+    $groupId = (int)$db->lastInsertId();
+    // Le créateur est admin du groupe
+    $db->prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?,?,'admin')")
+       ->execute([$groupId, $user['id']]);
+    jsonResponse(['message' => 'Groupe créé', 'id' => $groupId], 201);
+}
+
+function route_groups_delete(int $id): void {
+    $user = requireAuth();
+    $db   = getDb();
+    $group = $db->prepare("SELECT * FROM `groups` WHERE id=?")->execute([$id]) ? null : null;
+    $st = $db->prepare("SELECT * FROM `groups` WHERE id=?");
+    $st->execute([$id]);
+    $group = $st->fetch();
+    if (!$group) jsonError('Groupe introuvable', 404);
+    if ($group['created_by'] !== $user['id'] && roleLevel($user['role']) < 3) {
+        jsonError('Accès refusé', 403);
+    }
+    $db->prepare("DELETE FROM `groups` WHERE id=?")->execute([$id]);
+    jsonResponse(['message' => 'Groupe supprimé']);
+}
+
+function route_groups_join(int $id): void {
+    $user = requireAuth();
+    $db   = getDb();
+    $db->prepare("INSERT IGNORE INTO group_members (group_id, user_id) VALUES (?,?)")
+       ->execute([$id, $user['id']]);
+    jsonResponse(['message' => 'Vous avez rejoint le groupe']);
+}
+
+function route_groups_leave(int $id): void {
+    $user = requireAuth();
+    $db   = getDb();
+    // Vérifier qu'on n'est pas le seul admin
+    $st = $db->prepare("SELECT role FROM group_members WHERE group_id=? AND user_id=?");
+    $st->execute([$id, $user['id']]);
+    $member = $st->fetch();
+    $db->prepare("DELETE FROM group_members WHERE group_id=? AND user_id=?")->execute([$id, $user['id']]);
+    jsonResponse(['message' => 'Vous avez quitté le groupe']);
+}
+
+// ═══════════════════════════════════════════════
+// PARTENAIRES
+// ═══════════════════════════════════════════════
+
+function route_partners_list(): void {
+    requireAuth();
+    $db = getDb();
+    $rows = $db->query("SELECT * FROM partners WHERE validated=1 ORDER BY categorie, nom")->fetchAll();
+    jsonResponse($rows);
+}
+
+function route_partners_create(): void {
+    $body     = getBody();
+    $nom      = trim($body['nom'] ?? '');
+    $categorie= trim($body['categorie'] ?? '');
+    $desc     = trim($body['description'] ?? '');
+    $adresse  = trim($body['adresse'] ?? '');
+    $tel      = trim($body['telephone'] ?? '');
+    $web      = trim($body['site_web'] ?? '');
+    if (!$nom || !$categorie) jsonError('Nom et catégorie requis');
+
+    $db = getDb();
+    $db->prepare("INSERT INTO partners (nom, categorie, description, adresse, telephone, site_web) VALUES (?,?,?,?,?,?)")
+       ->execute([$nom, $categorie, $desc, $adresse, $tel, $web]);
+    jsonResponse(['message' => 'Demande d\'inscription envoyée, en attente de validation.'], 201);
+}
+
+function route_admin_partner_validate(int $id): void {
+    $user = requireAuth();
+    if (roleLevel($user['role']) < 3) jsonError('Accès refusé', 403);
+    $db = getDb();
+    $db->prepare("UPDATE partners SET validated=1 WHERE id=?")->execute([$id]);
+    jsonResponse(['message' => 'Partenaire validé']);
+}
+
+function route_admin_partner_delete(int $id): void {
+    $user = requireAuth();
+    if (roleLevel($user['role']) < 3) jsonError('Accès refusé', 403);
+    $db = getDb();
+    $db->prepare("DELETE FROM partners WHERE id=?")->execute([$id]);
+    jsonResponse(['message' => 'Partenaire supprimé']);
+}
+
+// ═══════════════════════════════════════════════
+// SPOTS
+// ═══════════════════════════════════════════════
+
+function route_spots_list(): void {
+    requireAuth();
+    $db = getDb();
+    jsonResponse($db->query("SELECT * FROM spots ORDER BY type, nom")->fetchAll());
 }

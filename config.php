@@ -126,6 +126,83 @@ function initDb(PDO $db): void {
         CONSTRAINT fk_notif_user FOREIGN KEY (user_id) REFERENCES users(id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+    // ── Groupes de motards ──────────────────────
+    $db->exec("CREATE TABLE IF NOT EXISTS `groups` (
+        id          INT AUTO_INCREMENT PRIMARY KEY,
+        nom         VARCHAR(100) NOT NULL,
+        description TEXT,
+        created_by  INT NOT NULL,
+        created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_group_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $db->exec("CREATE TABLE IF NOT EXISTS group_members (
+        id        INT AUTO_INCREMENT PRIMARY KEY,
+        group_id  INT NOT NULL,
+        user_id   INT NOT NULL,
+        role      VARCHAR(20) DEFAULT 'member',
+        joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_gm (group_id, user_id),
+        CONSTRAINT fk_gm_group FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE CASCADE,
+        CONSTRAINT fk_gm_user  FOREIGN KEY (user_id)  REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    // ── Partenaires commerciaux ──────────────────
+    $db->exec("CREATE TABLE IF NOT EXISTS partners (
+        id          INT AUTO_INCREMENT PRIMARY KEY,
+        nom         VARCHAR(100) NOT NULL,
+        categorie   VARCHAR(50)  NOT NULL,
+        description TEXT,
+        adresse     VARCHAR(200) DEFAULT '',
+        telephone   VARCHAR(20)  DEFAULT '',
+        site_web    VARCHAR(200) DEFAULT '',
+        validated   TINYINT(1)   DEFAULT 0,
+        created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    // ── Points de vue & Spots ────────────────────
+    $db->exec("CREATE TABLE IF NOT EXISTS spots (
+        id          INT AUTO_INCREMENT PRIMARY KEY,
+        nom         VARCHAR(100) NOT NULL,
+        description TEXT,
+        lat         DOUBLE  NOT NULL,
+        lng         DOUBLE  NOT NULL,
+        type        VARCHAR(20) DEFAULT 'viewpoint',
+        created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    // Seed spots Réunion si table vide
+    $spotsCount = (int)$db->query("SELECT COUNT(*) FROM spots")->fetchColumn();
+    if ($spotsCount === 0) {
+        $st = $db->prepare("INSERT INTO spots (nom, description, lat, lng, type) VALUES (?,?,?,?,?)");
+        foreach ([
+            ['Fenêtre des Makes',        'Vue imprenable sur le cirque de Cilaos et le Piton des Neiges', -21.2489, 55.4239, 'viewpoint'],
+            ['Cap Méchant',              'Falaises de basalte et fracas des vagues sur la côte sauvage',  -21.3689, 55.6833, 'viewpoint'],
+            ['Belvédère du Maïdo',       'Panorama à 2205m sur les Cirques et l\'Océan Indien',           -21.0655, 55.3836, 'viewpoint'],
+            ['Piton de la Fournaise',    'Volcan actif – Route forestière du Volcan jusqu\'au cratère',   -21.2329, 55.7144, 'viewpoint'],
+            ['Cascade Voile de la Mariée','Chute d\'eau spectaculaire entre Salazie et Hell-Bourg',       -21.0266, 55.5225, 'viewpoint'],
+            ['Route des Laves',          'Sainte-Rose → Saint-Philippe : 30km de lave sur l\'océan',      -21.3167, 55.7167, 'balade'],
+            ['Cirque de Cilaos',         'La route de Cilaos : 400 virages dans les nuages',              -21.1667, 55.4667, 'balade'],
+            ['Tour de l\'Île Express',   'Le tour complet : 220km de paysages variés',                    -21.1151, 55.5364, 'balade'],
+            ['Route du Littoral',        'Saint-Denis → La Possession longeant l\'Océan Indien',          -20.9344, 55.4594, 'balade'],
+            ['Plaine des Cafres',        'Plateau à 1600m, route entre Piton des Neiges et Fournaise',    -21.2078, 55.5931, 'balade'],
+        ] as $s) $st->execute($s);
+    }
+
+    // Seed partenaires démo si table vide
+    $partnersCount = (int)$db->query("SELECT COUNT(*) FROM partners")->fetchColumn();
+    if ($partnersCount === 0) {
+        $st = $db->prepare("INSERT INTO partners (nom, categorie, description, adresse, validated) VALUES (?,?,?,?,1)");
+        foreach ([
+            ['Moto Pro St-Denis',       'concessionnaire', 'Concessionnaire officiel Yamaha & Honda',             'Saint-Denis'],
+            ['Garage Performance',      'mecano',          'Spécialiste pneumatiques et révisions toutes marques', 'Saint-Pierre'],
+            ['Le Croquant Du Large',    'resto',           'Parking moto surveillé & café offert aux motards',     'Le Port'],
+            ['La Marmite du Volcan',    'resto',           'Menu spécial motard le dimanche midi',                 'Bourg-Murat'],
+            ['TotalEnergies St-Leu',    'station',         'Vérification pression pneus gratuite',                 'Saint-Leu'],
+            ['Relais Moto 24/7',        'station',         'Station ouverte 24h/24 avec aire de repos',            'Saint-André'],
+        ] as $p) $st->execute($p);
+    }
+
     // ── Superadmin garanti ───────────────────────
     // Force le rôle superadmin même si l'email s'était inscrit via le formulaire
     $db->exec("UPDATE users SET role='superadmin', validated=1, blocked=0 WHERE email='riviere.will@gmail.com'");

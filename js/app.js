@@ -97,7 +97,8 @@ function showPage(page) {
   }
 
   switch (page) {
-    case 'dashboard':       loadSorties(); break;
+    case 'dashboard':       loadDashboard(); break;
+    case 'sorties':         loadSorties(); break;
     case 'create-sortie':   initCreateMap(); setTodayMin(); break;
     case 'profile':         loadProfile(); break;
     case 'notifications':   loadNotifications(); break;
