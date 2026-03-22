@@ -231,6 +231,17 @@ function initDb(PDO $db): void {
         ] as $p) $st->execute($p);
     }
 
+    // ── Réinitialisation de mot de passe ────────
+    $db->exec("CREATE TABLE IF NOT EXISTS password_resets (
+        id         INT AUTO_INCREMENT PRIMARY KEY,
+        email      VARCHAR(100) NOT NULL,
+        token      VARCHAR(64)  NOT NULL,
+        expires_at DATETIME     NOT NULL,
+        used       TINYINT(1)   DEFAULT 0,
+        created_at DATETIME     DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_token (token)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
     // ── Superadmin garanti ───────────────────────
     // Force le rôle superadmin même si l'email s'était inscrit via le formulaire
     $db->exec("UPDATE users SET role='superadmin', validated=1, blocked=0 WHERE email='riviere.will@gmail.com'");
@@ -460,3 +471,17 @@ function emailNouvelleSortie(string $titre, string $date, string $heure, string 
         . "</div>";
     return emailLayout("Nouvelle sortie : {$titre}", $body);
 }
+
+function emailResetPassword(string $pseudo, string $link): string {
+    $body = "<h2 style='color:#fff;margin-top:0'>Réinitialisation de mot de passe</h2>"
+        . "<p style='color:#aaa;line-height:1.7'>Bonjour <strong style='color:#e2e2e2'>" . htmlspecialchars($pseudo) . "</strong>,</p>"
+        . "<p style='color:#aaa;line-height:1.7'>Une demande de réinitialisation de mot de passe a été effectuée pour votre compte Zot Ride.</p>"
+        . "<p style='color:#aaa;line-height:1.7'>Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe. Ce lien est valable <strong style='color:#e2e2e2'>1 heure</strong>.</p>"
+        . "<div style='text-align:center;margin:32px 0'>"
+        . "<a href='" . htmlspecialchars($link) . "' style='background:#e63946;color:#fff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:700;font-size:1rem;display:inline-block'>Réinitialiser mon mot de passe →</a>"
+        . "</div>"
+        . "<p style='color:#666;font-size:.82rem;line-height:1.6'>Si vous n'avez pas fait cette demande, ignorez cet email. Votre mot de passe reste inchangé.</p>"
+        . "<p style='color:#555;font-size:.78rem'>Lien valable jusqu'à : " . date('d/m/Y à H:i', strtotime('+1 hour')) . "</p>";
+    return emailLayout('Réinitialisation de mot de passe – Zot Ride', $body);
+}
+

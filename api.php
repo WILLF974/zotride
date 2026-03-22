@@ -34,6 +34,10 @@ if ($path === 'auth/login' && $method === 'POST') {
     route_auth_login();
 } elseif ($path === 'auth/register' && $method === 'POST') {
     route_auth_register();
+} elseif ($path === 'auth/forgot-password' && $method === 'POST') {
+    route_auth_forgot_password();
+} elseif ($path === 'auth/reset-password' && $method === 'POST') {
+    route_auth_reset_password();
 } elseif ($path === 'users/me' && $method === 'GET') {
     route_users_me_get();
 } elseif ($path === 'users/me' && $method === 'PUT') {
@@ -197,6 +201,58 @@ function route_auth_register(): void {
 
     notifyAdmins("Nouvelle inscription : $pseudo ($email)", 'new_user', $newUserId);
     jsonResponse(['message' => 'Inscription réussie. En attente de validation par l\'administrateur.'], 201);
+}
+
+function route_auth_forgot_password(): void {
+    $body  = getBody();
+    $email = strtolower(trim($body['email'] ?? ''));
+    if (!$email) jsonError('Email requis');
+
+    $db   = getDb();
+    $user = $db->prepare("SELECT id, pseudo FROM users WHERE email=? AND blocked=0");
+    $user->execute([$email]);
+    $user = $user->fetch();
+
+    // Toujours répondre OK pour ne pas révéler si l'email existe
+    if (!$user) {
+        jsonResponse(['message' => 'Si cet email est enregistré, vous recevrez un lien de réinitialisation.']);
+    }
+
+    // Invalider les anciens tokens
+    $db->prepare("UPDATE password_resets SET used=1 WHERE email=?")->execute([$email]);
+
+    // Générer un token sécurisé
+    $token     = bin2hex(random_bytes(32));
+    $expiresAt = date('Y-m-d H:i:s', time() + 3600); // 1h
+
+    $db->prepare("INSERT INTO password_resets (email, token, expires_at) VALUES (?,?,?)")
+       ->execute([$email, $token, $expiresAt]);
+
+    $link = 'https://zotride.fr/?token=' . $token;
+    sendEmail($email, 'Réinitialisation de mot de passe – Zot Ride', emailResetPassword($user['pseudo'], $link));
+
+    jsonResponse(['message' => 'Si cet email est enregistré, vous recevrez un lien de réinitialisation.']);
+}
+
+function route_auth_reset_password(): void {
+    $body     = getBody();
+    $token    = trim($body['token'] ?? '');
+    $password = $body['password'] ?? '';
+
+    if (!$token || strlen($password) < 6) jsonError('Token et mot de passe (min 6 caractères) requis');
+
+    $db = getDb();
+    $st = $db->prepare("SELECT * FROM password_resets WHERE token=? AND used=0 AND expires_at > NOW()");
+    $st->execute([$token]);
+    $reset = $st->fetch();
+
+    if (!$reset) jsonError('Lien invalide ou expiré. Faites une nouvelle demande.', 400);
+
+    $hash = password_hash($password, PASSWORD_BCRYPT);
+    $db->prepare("UPDATE users SET password=? WHERE email=?")->execute([$hash, $reset['email']]);
+    $db->prepare("UPDATE password_resets SET used=1 WHERE token=?")->execute([$token]);
+
+    jsonResponse(['message' => 'Mot de passe mis à jour. Vous pouvez maintenant vous connecter.']);
 }
 
 // ═══════════════════════════════════════════════
@@ -364,7 +420,8 @@ function route_sortie_delete(int $id): void {
     $sortie = $st->fetch();
     if (!$sortie) jsonError('Sortie introuvable', 404);
 
-    if ((int)$sortie['created_by'] !== (int)$user['id'] && $user['role'] !== 'admin') {
+    $isAdmin = in_array($user['role'], ['admin', 'superadmin']);
+    if ((int)$sortie['created_by'] !== (int)$user['id'] && !$isAdmin) {
         jsonError('Non autorisé', 403);
     }
 

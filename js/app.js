@@ -13,6 +13,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const dateInput = document.getElementById('sortieDate');
   if (dateInput) dateInput.min = new Date().toISOString().split('T')[0];
 
+  // Détecter un token de réinitialisation dans l'URL (?token=xxx)
+  const urlParams = new URLSearchParams(window.location.search);
+  const resetToken = urlParams.get('token');
+  if (resetToken) {
+    document.getElementById('resetToken').value = resetToken;
+    history.replaceState({}, '', '/'); // Nettoyer l'URL
+    showPage('reset-password');
+    return;
+  }
+
   const token = localStorage.getItem('token');
   if (token) {
     currentUser = JSON.parse(localStorage.getItem('user') || 'null');
@@ -77,8 +87,8 @@ function showPage(page) {
     showPage('dashboard');
     return;
   }
-  // Pages partenaires accessibles sans être connecté motard
-  if (page === 'partner-login' || page === 'partner-dashboard') {
+  // Pages auth sans connexion (forgot/reset password, partner)
+  if (['forgot-password', 'reset-password', 'partner-login', 'partner-dashboard'].includes(page)) {
     document.querySelectorAll('.page, .auth-page').forEach(el => el.classList.add('d-none'));
     const el = document.getElementById('page-' + page);
     if (el) el.classList.remove('d-none');
@@ -220,6 +230,71 @@ async function register(e) {
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.remove('d-none');
+  }
+}
+
+// ── Mot de passe oublié ───────────────────────────────────────
+async function forgotPassword(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('forgotError');
+  const okEl  = document.getElementById('forgotSuccess');
+  const btn   = document.getElementById('forgotBtn');
+  errEl.classList.add('d-none');
+  okEl.classList.add('d-none');
+
+  const email = document.getElementById('forgotEmail').value.trim();
+  if (!email) { errEl.textContent = 'Entrez votre email.'; errEl.classList.remove('d-none'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Envoi…';
+  try {
+    const data = await api('/auth/forgot-password', 'POST', { email });
+    okEl.textContent = data.message;
+    okEl.classList.remove('d-none');
+    btn.innerHTML = '<i class="fas fa-check me-2"></i>Email envoyé';
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove('d-none');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Envoyer le lien';
+  }
+}
+
+// ── Réinitialisation du mot de passe ─────────────────────────
+async function resetPassword(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('resetError');
+  const okEl  = document.getElementById('resetSuccess');
+  const btn   = document.getElementById('resetBtn');
+  errEl.classList.add('d-none');
+  okEl.classList.add('d-none');
+
+  const token    = document.getElementById('resetToken').value;
+  const password = document.getElementById('resetPassword').value;
+  const confirm  = document.getElementById('resetPasswordConfirm').value;
+
+  if (password.length < 6) {
+    errEl.textContent = 'Le mot de passe doit contenir au moins 6 caractères.';
+    errEl.classList.remove('d-none'); return;
+  }
+  if (password !== confirm) {
+    errEl.textContent = 'Les mots de passe ne correspondent pas.';
+    errEl.classList.remove('d-none'); return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enregistrement…';
+  try {
+    const data = await api('/auth/reset-password', 'POST', { token, password });
+    okEl.textContent = data.message;
+    okEl.classList.remove('d-none');
+    btn.innerHTML = '<i class="fas fa-check me-2"></i>Mot de passe mis à jour';
+    setTimeout(() => showPage('login'), 3000);
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove('d-none');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check me-2"></i>Enregistrer le mot de passe';
   }
 }
 
