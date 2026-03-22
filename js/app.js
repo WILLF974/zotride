@@ -125,6 +125,21 @@ function showPage(page) {
     case 'admin':           loadAdminData(); break;
     case 'members':         loadMembers(); break;
   }
+
+  if (page === 'register') {
+    // Peupler le select des groupes
+    fetch('/api/groups/public')
+      .then(r => r.json())
+      .then(groups => {
+        const sel = document.getElementById('regGroup');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">– Rejoindre un groupe (optionnel) –</option>';
+        groups.forEach(g => {
+          sel.innerHTML += `<option value="${g.id}">${sanitize(g.nom)}${g.nb_membres > 0 ? ' (' + g.nb_membres + ' membres)' : ''}</option>`;
+        });
+      })
+      .catch(() => {});
+  }
 }
 
 function setTodayMin() {
@@ -221,7 +236,8 @@ async function register(e) {
       email:          document.getElementById('regEmail').value.trim(),
       password:       document.getElementById('regPassword').value,
       moto_marque:    document.getElementById('regMarque').value,
-      moto_cylindree: document.getElementById('regCylindree').value
+      moto_cylindree: document.getElementById('regCylindree').value,
+      group_id:       parseInt(document.getElementById('regGroup').value) || 0
     });
     okEl.textContent = data.message;
     okEl.classList.remove('d-none');

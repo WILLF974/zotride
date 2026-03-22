@@ -88,6 +88,8 @@ if ($path === 'auth/login' && $method === 'POST') {
     route_radar_sorties();
 } elseif ($path === 'dashboard' && $method === 'GET') {
     route_dashboard();
+} elseif ($path === 'groups/public' && $method === 'GET') {
+    route_groups_public();
 } elseif ($path === 'groups' && $method === 'GET') {
     route_groups_list();
 } elseif ($path === 'groups' && $method === 'POST') {
@@ -130,6 +132,16 @@ if ($path === 'auth/login' && $method === 'POST') {
     route_partner_offer_update((int)$m[1]);
 } elseif (preg_match('#^partner/offers/(\d+)$#', $path, $m) && $method === 'DELETE') {
     route_partner_offer_delete((int)$m[1]);
+} elseif ($path === 'admin/groups' && $method === 'GET') {
+    route_admin_groups_list();
+} elseif ($path === 'admin/groups' && $method === 'POST') {
+    route_admin_groups_create();
+} elseif (preg_match('#^admin/groups/(\d+)$#', $path, $m) && $method === 'DELETE') {
+    route_admin_groups_delete((int)$m[1]);
+} elseif (preg_match('#^admin/groups/(\d+)/members$#', $path, $m) && $method === 'GET') {
+    route_admin_groups_members((int)$m[1]);
+} elseif (preg_match('#^admin/groups/(\d+)/members/(\d+)$#', $path, $m) && $method === 'DELETE') {
+    route_admin_groups_remove_member((int)$m[1], (int)$m[2]);
 } elseif ($path === 'spots' && $method === 'GET') {
     route_spots_list();
 } elseif ($path === 'health' && $method === 'GET') {
@@ -198,6 +210,16 @@ function route_auth_register(): void {
     $st   = $db->prepare("INSERT INTO users (pseudo,email,password,moto_marque,moto_cylindree,role,validated) VALUES (?,?,?,?,?,'participant',0)");
     $st->execute([$pseudo, $email, $hash, $moto_marque, $moto_cc]);
     $newUserId = (int)$db->lastInsertId();
+    $groupId   = (int)($body['group_id'] ?? 0);
+    if ($groupId > 0) {
+        // Vérifier que le groupe existe
+        $g = $db->prepare("SELECT id FROM `groups` WHERE id=?");
+        $g->execute([$groupId]);
+        if ($g->fetch()) {
+            $db->prepare("INSERT IGNORE INTO group_members (group_id, user_id) VALUES (?,?)")
+               ->execute([$groupId, $newUserId]);
+        }
+    }
 
     notifyAdmins("Nouvelle inscription : $pseudo ($email)", 'new_user', $newUserId);
     jsonResponse(['message' => 'Inscription réussie. En attente de validation par l\'administrateur.'], 201);
@@ -805,6 +827,12 @@ function route_dashboard(): void {
 // GROUPES
 // ═══════════════════════════════════════════════
 
+function route_groups_public(): void {
+    $db = getDb();
+    $st = $db->query("SELECT id, nom, description, (SELECT COUNT(*) FROM group_members WHERE group_id=g.id) as nb_membres FROM `groups` g ORDER BY g.nom ASC");
+    jsonResponse($st->fetchAll());
+}
+
 function route_groups_list(): void {
     $user = requireAuth();
     $db   = getDb();
@@ -1112,4 +1140,70 @@ function route_spots_list(): void {
     requireAuth();
     $db = getDb();
     jsonResponse($db->query("SELECT * FROM spots ORDER BY type, nom")->fetchAll());
+}
+
+// ═══════════════════════════════════════════════
+// ADMIN GROUPES
+// ═══════════════════════════════════════════════
+
+function route_admin_groups_list(): void {
+    $user = requireAuth();
+    if (roleLevel($user['role']) < 3) jsonError('Accès refusé', 403);
+    $db = getDb();
+    $st = $db->query("
+        SELECT g.id, g.nom, g.description, g.created_at,
+               u.pseudo as createur,
+               (SELECT COUNT(*) FROM group_members WHERE group_id=g.id) as nb_membres
+        FROM `groups` g
+        LEFT JOIN users u ON u.id=g.created_by
+        ORDER BY g.nom ASC
+    ");
+    jsonResponse($st->fetchAll());
+}
+
+function route_admin_groups_create(): void {
+    $user = requireAuth();
+    if (roleLevel($user['role']) < 3) jsonError('Accès refusé', 403);
+    $body = getBody();
+    $nom  = trim($body['nom'] ?? '');
+    $desc = trim($body['description'] ?? '');
+    if (!$nom) jsonError('Nom du groupe requis');
+    $db = getDb();
+    $db->prepare("INSERT INTO `groups` (nom, description, created_by) VALUES (?,?,?)")
+       ->execute([$nom, $desc, $user['id']]);
+    $groupId = (int)$db->lastInsertId();
+    $db->prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?,?,'admin')")
+       ->execute([$groupId, $user['id']]);
+    jsonResponse(['message' => 'Groupe créé', 'id' => $groupId], 201);
+}
+
+function route_admin_groups_delete(int $id): void {
+    $user = requireAuth();
+    if (roleLevel($user['role']) < 3) jsonError('Accès refusé', 403);
+    $db = getDb();
+    $db->prepare("DELETE FROM `groups` WHERE id=?")->execute([$id]);
+    jsonResponse(['message' => 'Groupe supprimé']);
+}
+
+function route_admin_groups_members(int $id): void {
+    $user = requireAuth();
+    if (roleLevel($user['role']) < 3) jsonError('Accès refusé', 403);
+    $db = getDb();
+    $st = $db->prepare("
+        SELECT u.id, u.pseudo, u.email, u.moto_marque, u.moto_cylindree, gm.role, gm.joined_at
+        FROM group_members gm
+        JOIN users u ON u.id=gm.user_id
+        WHERE gm.group_id=?
+        ORDER BY gm.role DESC, u.pseudo ASC
+    ");
+    $st->execute([$id]);
+    jsonResponse($st->fetchAll());
+}
+
+function route_admin_groups_remove_member(int $groupId, int $userId): void {
+    $user = requireAuth();
+    if (roleLevel($user['role']) < 3) jsonError('Accès refusé', 403);
+    $db = getDb();
+    $db->prepare("DELETE FROM group_members WHERE group_id=? AND user_id=?")->execute([$groupId, $userId]);
+    jsonResponse(['message' => 'Membre retiré du groupe']);
 }

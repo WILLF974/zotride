@@ -61,9 +61,11 @@ function showAdminTab(tab, el) {
   document.getElementById('admin-tab-users').style.display    = tab === 'users'    ? 'block' : 'none';
   document.getElementById('admin-tab-sorties').style.display  = tab === 'sorties'  ? 'block' : 'none';
   document.getElementById('admin-tab-partners').style.display = tab === 'partners' ? 'block' : 'none';
+  document.getElementById('admin-tab-groups').style.display   = tab === 'groups'   ? 'block' : 'none';
 
   if (tab === 'sorties')  loadAdminSorties();
   if (tab === 'partners') loadAdminPartners();
+  if (tab === 'groups')   loadAdminGroups();
 }
 
 // ── Utilisateurs ──────────────────────────────────────────────
@@ -586,4 +588,125 @@ async function bulkDelete() {
   showToast(`${ok} membre(s) supprimé(s)`);
   membersSelected.clear();
   await loadMembers();
+}
+
+// ── Admin Groupes ─────────────────────────────────────────────
+let adminGroupsList = [];
+
+async function loadAdminGroups() {
+  const list = document.getElementById('admin-groups-list');
+  if (!list) return;
+  list.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+  try {
+    adminGroupsList = await api('/admin/groups');
+    renderAdminGroups();
+  } catch (err) {
+    list.innerHTML = `<p class="text-danger">${sanitize(err.message)}</p>`;
+  }
+}
+
+function renderAdminGroups() {
+  const list = document.getElementById('admin-groups-list');
+  if (!adminGroupsList.length) {
+    list.innerHTML = '<div class="empty-state"><i class="fas fa-users-cog"></i><h5>Aucun groupe</h5><p>Créez le premier groupe de motards.</p></div>';
+    return;
+  }
+  list.innerHTML = adminGroupsList.map(g => `
+    <div class="admin-user-card d-flex align-items-center gap-3 flex-wrap">
+      <div class="flex-grow-1">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <strong>${sanitize(g.nom)}</strong>
+          <span class="badge bg-secondary">${g.nb_membres} membre${g.nb_membres > 1 ? 's' : ''}</span>
+          <span class="text-muted small">Créé par ${sanitize(g.createur || '–')}</span>
+        </div>
+        ${g.description ? `<div class="text-muted small mt-1">${sanitize(g.description)}</div>` : ''}
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="adminViewGroupMembers(${g.id}, '${sanitize(g.nom)}')">
+          <i class="fas fa-users"></i> Membres
+        </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="adminDeleteGroup(${g.id}, '${sanitize(g.nom)}')">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showAdminCreateGroupModal() {
+  document.getElementById('adminGroupNom').value = '';
+  document.getElementById('adminGroupDesc').value = '';
+  document.getElementById('adminGroupError').classList.add('d-none');
+  new bootstrap.Modal(document.getElementById('modalAdminCreateGroup')).show();
+}
+
+async function adminCreateGroup(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('adminGroupError');
+  errEl.classList.add('d-none');
+  const nom  = document.getElementById('adminGroupNom').value.trim();
+  const desc = document.getElementById('adminGroupDesc').value.trim();
+  if (!nom) { errEl.textContent = 'Nom requis'; errEl.classList.remove('d-none'); return; }
+  try {
+    await api('/admin/groups', 'POST', { nom, description: desc });
+    bootstrap.Modal.getInstance(document.getElementById('modalAdminCreateGroup')).hide();
+    showToast('Groupe créé');
+    loadAdminGroups();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove('d-none');
+  }
+}
+
+async function adminDeleteGroup(id, nom) {
+  if (!confirm(`Supprimer le groupe "${nom}" et retirer tous ses membres ?`)) return;
+  try {
+    await api(`/admin/groups/${id}`, 'DELETE');
+    showToast('Groupe supprimé');
+    loadAdminGroups();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function adminViewGroupMembers(id, nom) {
+  const modal = new bootstrap.Modal(document.getElementById('modalAdminGroupMembers'));
+  document.getElementById('modalAdminGroupMembersTitle').innerHTML = `<i class="fas fa-users text-primary me-2"></i>${sanitize(nom)}`;
+  document.getElementById('modalAdminGroupMembersBody').innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary"></div></div>';
+  modal.show();
+  try {
+    const members = await api(`/admin/groups/${id}/members`);
+    if (!members.length) {
+      document.getElementById('modalAdminGroupMembersBody').innerHTML = '<p class="text-muted text-center py-3">Aucun membre dans ce groupe.</p>';
+      return;
+    }
+    document.getElementById('modalAdminGroupMembersBody').innerHTML = members.map(m => `
+      <div class="d-flex align-items-center gap-3 py-2 border-bottom" style="border-color:var(--border)!important">
+        <div class="mini-avatar"><i class="fas fa-user"></i></div>
+        <div class="flex-grow-1">
+          <strong>${sanitize(m.pseudo)}</strong>
+          ${m.role === 'admin' ? '<span class="badge bg-warning text-dark ms-1 small">Admin</span>' : ''}
+          <div class="text-muted small">${sanitize(m.email)}${m.moto_marque ? ' · ' + sanitize(m.moto_marque) : ''}</div>
+        </div>
+        <button class="btn btn-sm btn-outline-danger" onclick="adminRemoveGroupMember(${id}, ${m.id}, '${sanitize(m.pseudo)}')">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    `).join('');
+  } catch (err) {
+    document.getElementById('modalAdminGroupMembersBody').innerHTML = `<p class="text-danger">${sanitize(err.message)}</p>`;
+  }
+}
+
+async function adminRemoveGroupMember(groupId, userId, pseudo) {
+  if (!confirm(`Retirer ${pseudo} du groupe ?`)) return;
+  try {
+    await api(`/admin/groups/${groupId}/members/${userId}`, 'DELETE');
+    showToast(`${pseudo} retiré du groupe`);
+    // Recharger la liste des membres dans le modal
+    const title = document.getElementById('modalAdminGroupMembersTitle').textContent.trim();
+    adminViewGroupMembers(groupId, title);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
