@@ -369,6 +369,7 @@ function refreshUserData() {
 let membersData     = [];
 let membersFilter   = 'all';
 let membersSelected = new Set();
+let groupsCache     = [];   // liste des groupes pour le select
 
 async function loadMembers() {
   const list = document.getElementById('members-list');
@@ -377,7 +378,10 @@ async function loadMembers() {
   membersSelected.clear();
   updateBulkBar();
   try {
-    membersData = await api('/admin/users');
+    [membersData, groupsCache] = await Promise.all([
+      api('/admin/users'),
+      api('/admin/groups').catch(() => [])
+    ]);
     updateMembersFilterBadge();
     renderMembersTable();
   } catch (err) {
@@ -437,6 +441,7 @@ function renderMembersTable() {
           </th>
           <th style="padding:10px 14px;color:var(--text-muted);font-size:.8rem;font-weight:600">Membre</th>
           <th style="padding:10px 14px;color:var(--text-muted);font-size:.8rem;font-weight:600" class="d-none d-md-table-cell">Moto</th>
+          <th style="padding:10px 14px;color:var(--text-muted);font-size:.8rem;font-weight:600" class="d-none d-lg-table-cell">Groupe</th>
           <th style="padding:10px 14px;color:var(--text-muted);font-size:.8rem;font-weight:600">Rôle</th>
           <th style="padding:10px 14px;color:var(--text-muted);font-size:.8rem;font-weight:600">Statut</th>
           <th style="padding:10px 14px;color:var(--text-muted);font-size:.8rem;font-weight:600;text-align:right">Actions</th>
@@ -469,6 +474,13 @@ function renderMembersTable() {
             </td>
             <td style="padding:12px 14px;color:var(--text-muted);font-size:.83rem" class="d-none d-md-table-cell">
               ${u.moto_marque ? `${sanitize(u.moto_marque)}${u.moto_cylindree ? ' ' + u.moto_cylindree + ' cc' : ''}` : '–'}
+            </td>
+            <td style="padding:12px 14px" class="d-none d-lg-table-cell">
+              ${canManage ? `
+                <select class="form-select form-select-sm" style="width:auto;min-width:150px" onchange="assignMemberGroup(${u.id}, this.value)">
+                  <option value="0"${!u.group_id ? ' selected' : ''}>– Aucun groupe –</option>
+                  ${groupsCache.map(g => `<option value="${g.id}"${u.group_id == g.id ? ' selected' : ''}>${sanitize(g.nom)}</option>`).join('')}
+                </select>` : `<span class="text-muted small">${u.group_nom ? sanitize(u.group_nom) : '–'}</span>`}
             </td>
             <td style="padding:12px 14px">
               ${canManage && u.validated && !u.blocked
@@ -588,6 +600,21 @@ async function bulkDelete() {
   showToast(`${ok} membre(s) supprimé(s)`);
   membersSelected.clear();
   await loadMembers();
+}
+
+async function assignMemberGroup(userId, groupId) {
+  try {
+    const data = await api(`/admin/users/${userId}/group`, 'PUT', { group_id: parseInt(groupId) });
+    showToast(data.message);
+    // Mettre à jour le cache local sans recharger toute la liste
+    const u = membersData.find(m => m.id === userId);
+    if (u) {
+      u.group_id  = parseInt(groupId) || null;
+      u.group_nom = groupsCache.find(g => g.id == groupId)?.nom || null;
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 // ── Admin Groupes ─────────────────────────────────────────────

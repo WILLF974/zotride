@@ -302,6 +302,16 @@ a:hover { color: #fff; }
   margin-left: 5px;
 }
 
+.admin-user-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: .75rem;
+  transition: border-color .2s;
+}
+.admin-user-card:hover { border-color: #444; }
+
 .admin-stat-card {
   background: var(--bg-card);
   border: 1px solid var(--border);

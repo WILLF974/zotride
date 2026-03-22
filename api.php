@@ -74,6 +74,8 @@ if ($path === 'auth/login' && $method === 'POST') {
     route_admin_user_role((int)$m[1]);
 } elseif (preg_match('#^admin/users/(\d+)/block$#', $path, $m) && $method === 'PUT') {
     route_admin_user_block((int)$m[1]);
+} elseif (preg_match('#^admin/users/(\d+)/group$#', $path, $m) && $method === 'PUT') {
+    route_admin_user_assign_group((int)$m[1]);
 } elseif (preg_match('#^admin/users/(\d+)$#', $path, $m) && $method === 'DELETE') {
     route_admin_user_delete((int)$m[1]);
 } elseif ($path === 'admin/sorties' && $method === 'GET') {
@@ -573,14 +575,17 @@ function route_admin_users_list(): void {
     $db    = getDb();
     $actorLevel = roleLevel($actor['role']);
 
+    $groupJoin = "LEFT JOIN group_members gm ON gm.user_id=u.id LEFT JOIN `groups` g ON g.id=gm.group_id";
+    $cols = "u.id,u.pseudo,u.email,u.moto_marque,u.moto_cylindree,u.role,u.validated,u.blocked,u.created_at,gm.group_id,g.nom as group_nom";
+
     if ($actorLevel >= 4) {
-        $rows = $db->prepare("SELECT id,pseudo,email,moto_marque,moto_cylindree,role,validated,blocked,created_at FROM users WHERE id!=? ORDER BY validated ASC, created_at DESC");
+        $rows = $db->prepare("SELECT $cols FROM users u $groupJoin WHERE u.id!=? ORDER BY u.validated ASC, u.created_at DESC");
         $rows->execute([$actor['id']]);
     } elseif ($actorLevel >= 3) {
-        $rows = $db->prepare("SELECT id,pseudo,email,moto_marque,moto_cylindree,role,validated,blocked,created_at FROM users WHERE role NOT IN ('superadmin','admin') ORDER BY validated ASC, created_at DESC");
+        $rows = $db->prepare("SELECT $cols FROM users u $groupJoin WHERE u.role NOT IN ('superadmin','admin') ORDER BY u.validated ASC, u.created_at DESC");
         $rows->execute([]);
     } else {
-        $rows = $db->prepare("SELECT id,pseudo,email,moto_marque,moto_cylindree,role,validated,blocked,created_at FROM users WHERE role NOT IN ('superadmin','admin','organisateur') ORDER BY validated ASC, created_at DESC");
+        $rows = $db->prepare("SELECT $cols FROM users u $groupJoin WHERE u.role NOT IN ('superadmin','admin','organisateur') ORDER BY u.validated ASC, u.created_at DESC");
         $rows->execute([]);
     }
     jsonResponse($rows->fetchAll());
@@ -655,6 +660,28 @@ function route_admin_user_block(int $id): void {
 
     $msg = $newBlocked ? 'Compte suspendu' : 'Compte réactivé';
     jsonResponse(['message' => $msg, 'blocked' => (bool)$newBlocked]);
+}
+
+function route_admin_user_assign_group(int $userId): void {
+    $actor = requireOrgOrAdmin();
+    if (roleLevel($actor['role']) < 3) jsonError('Accès refusé', 403);
+    $body    = getBody();
+    $groupId = (int)($body['group_id'] ?? 0);
+    $db      = getDb();
+
+    // Retirer l'utilisateur de tous ses groupes existants
+    $db->prepare("DELETE FROM group_members WHERE user_id=?")->execute([$userId]);
+
+    // Ajouter au nouveau groupe si group_id > 0
+    if ($groupId > 0) {
+        $g = $db->prepare("SELECT id FROM `groups` WHERE id=?");
+        $g->execute([$groupId]);
+        if (!$g->fetch()) jsonError('Groupe introuvable', 404);
+        $db->prepare("INSERT IGNORE INTO group_members (group_id, user_id) VALUES (?,?)")
+           ->execute([$groupId, $userId]);
+        jsonResponse(['message' => 'Membre assigné au groupe']);
+    }
+    jsonResponse(['message' => 'Membre retiré de tous les groupes']);
 }
 
 function route_admin_user_delete(int $id): void {
