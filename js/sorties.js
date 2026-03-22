@@ -4,6 +4,96 @@
 
 let currentSortieId = null;
 
+// ── Chat Pusher ────────────────────────────────────────────────
+let pusherClient  = null;
+let chatChannel   = null;
+const PUSHER_KEY  = 'e3694954e31d41d5e80d';
+const PUSHER_CLUSTER = 'eu';
+
+function initChat(sortieId) {
+  // Init Pusher une seule fois
+  if (!pusherClient) {
+    pusherClient = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER });
+  }
+
+  // Quitter le canal précédent
+  if (chatChannel) {
+    pusherClient.unsubscribe(chatChannel.name);
+    chatChannel = null;
+  }
+
+  chatChannel = pusherClient.subscribe(`sortie-${sortieId}`);
+  chatChannel.bind('new-message', (data) => {
+    appendChatMessage(data, false);
+    scrollChat();
+  });
+
+  loadChatMessages(sortieId);
+}
+
+async function loadChatMessages(sortieId) {
+  const box = document.getElementById('chat-messages');
+  if (!box) return;
+  try {
+    const messages = await api(`/sorties/${sortieId}/chat`);
+    if (!messages.length) {
+      box.innerHTML = '<p class="chat-empty">Aucun message. Soyez le premier !</p>';
+      return;
+    }
+    box.innerHTML = '';
+    messages.forEach(m => appendChatMessage(m, false));
+    scrollChat();
+  } catch { box.innerHTML = '<p class="chat-empty">Chat indisponible</p>'; }
+}
+
+function appendChatMessage(m, animate = true) {
+  const box = document.getElementById('chat-messages');
+  if (!box) return;
+  const isOwn = currentUser && m.user_id == currentUser.id;
+  const time  = new Date(m.created_at.endsWith('Z') ? m.created_at : m.created_at + 'Z')
+                  .toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const init  = (m.pseudo || '?')[0].toUpperCase();
+
+  // Supprimer le message vide si présent
+  const empty = box.querySelector('.chat-empty');
+  if (empty) empty.remove();
+
+  const el = document.createElement('div');
+  el.className = `chat-msg${isOwn ? ' own' : ''}`;
+  if (animate) el.style.animation = 'fadeInUp .2s ease';
+  el.innerHTML = `
+    <div class="chat-avatar">${sanitize(init)}</div>
+    <div>
+      <div class="chat-meta">${isOwn ? 'Vous' : sanitize(m.pseudo)} · ${time}</div>
+      <div class="chat-bubble">${sanitize(m.message)}</div>
+    </div>`;
+  box.appendChild(el);
+}
+
+function scrollChat() {
+  const box = document.getElementById('chat-messages');
+  if (box) box.scrollTop = box.scrollHeight;
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const btn   = document.getElementById('chat-send-btn');
+  const msg   = input.value.trim();
+  if (!msg || !currentSortieId) return;
+
+  input.value = '';
+  btn.disabled = true;
+  try {
+    await api(`/sorties/${currentSortieId}/chat`, 'POST', { message: msg });
+  } catch (err) {
+    showToast(err.message, 'error');
+    input.value = msg; // restaurer si erreur
+  } finally {
+    btn.disabled = false;
+    input.focus();
+  }
+}
+
 // ── Dashboard : liste des sorties ─────────────────────────────
 async function loadSorties() {
   const list = document.getElementById('sorties-list');
@@ -138,6 +228,9 @@ async function viewSortie(id) {
 
     // Init map
     initDetailMap(s.waypoints);
+
+    // Init chat éphémère
+    initChat(id);
 
     // Partenaires proches du point de rassemblement
     const rally = s.waypoints && s.waypoints.find(w => w.is_rassemblement);
