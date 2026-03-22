@@ -417,8 +417,8 @@ function notifyAdmins(string $message, string $type, ?int $relatedId = null): vo
 }
 
 // ── Email ─────────────────────────────────────────────────────
-function sendEmail(string $to, string $subject, string $html): void {
-    $from    = 'noreply@zotride.fr';
+function sendEmail(string $to, string $subject, string $html): bool {
+    $from    = 'contact@zotride.fr';
     $headers = implode("\r\n", [
         'MIME-Version: 1.0',
         'Content-Type: text/html; charset=utf-8',
@@ -426,7 +426,8 @@ function sendEmail(string $to, string $subject, string $html): void {
         "Reply-To: {$from}",
         'X-Mailer: ZotRide/1.0',
     ]);
-    @mail($to, '=?utf-8?B?' . base64_encode($subject) . '?=', $html, $headers);
+    $encodedSubject = '=?utf-8?B?' . base64_encode($subject) . '?=';
+    return mail($to, $encodedSubject, $html, $headers, "-f{$from}");
 }
 
 function emailLayout(string $title, string $body): string {
