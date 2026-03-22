@@ -188,6 +188,18 @@ function initDb(PDO $db): void {
         CONSTRAINT fk_offer_partner FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+    // ── Chat éphémère par sortie ─────────────────
+    $db->exec("CREATE TABLE IF NOT EXISTS chat_messages (
+        id         INT AUTO_INCREMENT PRIMARY KEY,
+        sortie_id  INT          NOT NULL,
+        user_id    INT          NOT NULL,
+        pseudo     VARCHAR(50)  NOT NULL,
+        message    TEXT         NOT NULL,
+        created_at DATETIME     DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_chat_sortie FOREIGN KEY (sortie_id) REFERENCES sorties(id) ON DELETE CASCADE,
+        CONSTRAINT fk_chat_user   FOREIGN KEY (user_id)   REFERENCES users(id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
     // ── Points de vue & Spots ────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS spots (
         id          INT AUTO_INCREMENT PRIMARY KEY,
@@ -484,5 +496,45 @@ function emailResetPassword(string $pseudo, string $link): string {
         . "<p style='color:#666;font-size:.82rem;line-height:1.6'>Si vous n'avez pas fait cette demande, ignorez cet email. Votre mot de passe reste inchangé.</p>"
         . "<p style='color:#555;font-size:.78rem'>Lien valable jusqu'à : " . date('d/m/Y à H:i', strtotime('+1 hour')) . "</p>";
     return emailLayout('Réinitialisation de mot de passe – Zot Ride', $body);
+}
+
+// ═══════════════════════════════════════════════
+// PUSHER – Envoi d'événement via HTTP API (sans SDK)
+// ═══════════════════════════════════════════════
+function pusherTrigger(string $channel, string $event, array $data): void {
+    $appId   = $_ENV['PUSHER_APP_ID']  ?? '2131012';
+    $key     = $_ENV['PUSHER_KEY']     ?? 'e3694954e31d41d5e80d';
+    $secret  = $_ENV['PUSHER_SECRET']  ?? '42ac3a3a8c857e10b2e1';
+    $cluster = $_ENV['PUSHER_CLUSTER'] ?? 'eu';
+
+    $body    = json_encode([
+        'name'     => $event,
+        'channels' => [$channel],
+        'data'     => json_encode($data),
+    ]);
+    $bodyMd5   = md5($body);
+    $path      = "/apps/{$appId}/events";
+    $timestamp = time();
+
+    $params = [
+        'auth_key'       => $key,
+        'auth_timestamp' => $timestamp,
+        'auth_version'   => '1.0',
+        'body_md5'       => $bodyMd5,
+    ];
+    ksort($params);
+    $queryString  = http_build_query($params);
+    $stringToSign = "POST\n{$path}\n{$queryString}";
+    $signature    = hash_hmac('sha256', $stringToSign, $secret);
+
+    $url = "https://api-{$cluster}.pusher.com{$path}?{$queryString}&auth_signature={$signature}";
+
+    $ctx = stream_context_create(['http' => [
+        'method'  => 'POST',
+        'header'  => "Content-Type: application/json\r\nContent-Length: " . strlen($body),
+        'content' => $body,
+        'timeout' => 5,
+    ]]);
+    @file_get_contents($url, false, $ctx);
 }
 

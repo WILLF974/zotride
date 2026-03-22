@@ -56,6 +56,10 @@ if ($path === 'auth/login' && $method === 'POST') {
     route_sortie_participate((int)$m[1]);
 } elseif (preg_match('#^sorties/(\d+)/participate$#', $path, $m) && $method === 'DELETE') {
     route_sortie_leave((int)$m[1]);
+} elseif (preg_match('#^sorties/(\d+)/chat$#', $path, $m) && $method === 'GET') {
+    route_chat_get((int)$m[1]);
+} elseif (preg_match('#^sorties/(\d+)/chat$#', $path, $m) && $method === 'POST') {
+    route_chat_post((int)$m[1]);
 } elseif (preg_match('#^sorties/(\d+)/location$#', $path, $m) && $method === 'PUT') {
     route_sortie_location_put((int)$m[1]);
 } elseif (preg_match('#^sorties/(\d+)/locations$#', $path, $m) && $method === 'GET') {
@@ -858,6 +862,68 @@ function route_groups_public(): void {
     $db = getDb();
     $st = $db->query("SELECT id, nom, description, (SELECT COUNT(*) FROM group_members WHERE group_id=g.id) as nb_membres FROM `groups` g ORDER BY g.nom ASC");
     jsonResponse($st->fetchAll());
+}
+
+// ═══════════════════════════════════════════════
+// CHAT ÉPHÉMÈRE (Pusher)
+// ═══════════════════════════════════════════════
+
+function route_chat_get(int $sortieId): void {
+    requireAuth();
+    $db = getDb();
+
+    // Nettoyer les messages de sorties passées depuis plus de 24h
+    $db->exec("DELETE cm FROM chat_messages cm
+               JOIN sorties s ON s.id=cm.sortie_id
+               WHERE s.date < DATE_SUB(CURDATE(), INTERVAL 1 DAY)");
+
+    $st = $db->prepare("
+        SELECT cm.id, cm.user_id, cm.pseudo, cm.message, cm.created_at
+        FROM chat_messages cm
+        WHERE cm.sortie_id=?
+        ORDER BY cm.created_at ASC
+        LIMIT 50
+    ");
+    $st->execute([$sortieId]);
+    jsonResponse($st->fetchAll());
+}
+
+function route_chat_post(int $sortieId): void {
+    $user = requireAuth();
+    $body = getBody();
+    $msg  = trim($body['message'] ?? '');
+
+    if (!$msg)            jsonError('Message vide');
+    if (mb_strlen($msg) > 500) jsonError('Message trop long (500 car. max)');
+
+    // Vérifier que la sortie existe
+    $db = getDb();
+    $st = $db->prepare("SELECT id FROM sorties WHERE id=? AND status='active'");
+    $st->execute([$sortieId]);
+    if (!$st->fetch()) jsonError('Sortie introuvable', 404);
+
+    // Sauvegarder le message
+    $db->prepare("INSERT INTO chat_messages (sortie_id, user_id, pseudo, message) VALUES (?,?,?,?)")
+       ->execute([$sortieId, $user['id'], $user['pseudo'], $msg]);
+    $msgId = (int)$db->lastInsertId();
+
+    // Garder uniquement les 50 derniers messages
+    $db->prepare("DELETE FROM chat_messages WHERE sortie_id=? AND id NOT IN (
+        SELECT id FROM (SELECT id FROM chat_messages WHERE sortie_id=? ORDER BY id DESC LIMIT 50) t
+    )")->execute([$sortieId, $sortieId]);
+
+    $payload = [
+        'id'         => $msgId,
+        'user_id'    => $user['id'],
+        'pseudo'     => $user['pseudo'],
+        'message'    => $msg,
+        'created_at' => date('Y-m-d H:i:s'),
+    ];
+
+    // Déclencher l'événement Pusher
+    pusherTrigger("sortie-{$sortieId}", 'new-message', $payload);
+
+    jsonResponse(['message' => 'ok', 'data' => $payload], 201);
 }
 
 function route_groups_list(): void {
