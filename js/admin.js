@@ -155,6 +155,10 @@ function renderUsers() {
 }
 
 async function validateUser(id) {
+  // Désactiver immédiatement le bouton pour éviter double-clic
+  const btn = document.querySelector(`button[onclick="validateUser(${id})"]`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+
   const sel = document.getElementById(`val-role-${id}`) || document.getElementById(`role-${id}`);
   const role = sel ? sel.value : 'participant';
   try {
@@ -163,6 +167,7 @@ async function validateUser(id) {
     refreshUserData();
   } catch (err) {
     showToast(err.message, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> Valider'; }
   }
 }
 

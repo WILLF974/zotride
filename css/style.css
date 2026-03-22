@@ -51,6 +51,18 @@ a:hover { color: #fff; }
 }
 .brand-accent { color: var(--primary); }
 
+/* Burger menu mobile */
+.navbar-toggler {
+  border: 1px solid rgba(255,255,255,.35) !important;
+  padding: .35rem .55rem;
+  border-radius: 6px;
+}
+.navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255,255,255,0.9)' stroke-width='2.5' stroke-linecap='round' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+  width: 1.4em; height: 1.4em;
+}
+.navbar-toggler:focus { box-shadow: 0 0 0 2px rgba(230,57,70,.4); }
+
 .nav-link {
   color: var(--text-muted) !important;
   font-weight: 500;
@@ -59,6 +71,13 @@ a:hover { color: #fff; }
   transition: color .2s, background .2s;
 }
 .nav-link:hover { color: #fff !important; background: var(--bg-card); }
+
+.notif-label {
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.nav-link:hover .notif-label { color: #fff; }
 
 .nav-avatar {
   width: 28px; height: 28px;
