@@ -17,10 +17,12 @@ set_error_handler(function (int $errno, string $errstr) {
 
 require_once __DIR__ . '/config.php';
 
-// CORS headers
+// CORS + no-cache headers
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET,POST,PUT,DELETE,OPTIONS');
 header('Access-Control-Allow-Headers: Authorization,Content-Type');
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Pragma: no-cache');
 if (getMethod() === 'OPTIONS') { http_response_code(204); exit; }
 
 // Extraire le chemin de la route (ex: /api/auth/login → auth/login)
@@ -228,6 +230,9 @@ function route_auth_register(): void {
     }
 
     notifyAdmins("Nouvelle inscription : $pseudo ($email)", 'new_user', $newUserId);
+    // Email aux admins (superadmin)
+    $moto = trim("$moto_marque" . ($moto_cc ? " $moto_cc cc" : ''));
+    sendEmail('riviere.will@gmail.com', 'Nouvelle inscription – Zot Ride', emailNouvelleInscription($pseudo, $email, $moto));
     jsonResponse(['message' => 'Inscription réussie. En attente de validation par l\'administrateur.'], 201);
 }
 

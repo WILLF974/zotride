@@ -428,18 +428,38 @@ function notifyAdmins(string $message, string $type, ?int $relatedId = null): vo
     }
 }
 
-// ── Email ─────────────────────────────────────────────────────
+// ── Email (PHPMailer + SMTP Hostinger) ────────────────────────
 function sendEmail(string $to, string $subject, string $html): bool {
-    $from    = 'contact@zotride.fr';
-    $headers = implode("\r\n", [
-        'MIME-Version: 1.0',
-        'Content-Type: text/html; charset=utf-8',
-        "From: Zot Ride <{$from}>",
-        "Reply-To: {$from}",
-        'X-Mailer: ZotRide/1.0',
-    ]);
-    $encodedSubject = '=?utf-8?B?' . base64_encode($subject) . '?=';
-    return mail($to, $encodedSubject, $html, $headers, "-f{$from}");
+    require_once __DIR__ . '/lib/phpmailer/Exception.php';
+    require_once __DIR__ . '/lib/phpmailer/PHPMailer.php';
+    require_once __DIR__ . '/lib/phpmailer/SMTP.php';
+
+    $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+    try {
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.hostinger.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'contact@zotride.fr';
+        $mail->Password   = $_ENV['SMTP_PASS'] ?? '';
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = 587;
+        $mail->CharSet    = 'UTF-8';
+
+        $mail->setFrom('contact@zotride.fr', 'Zot Ride');
+        $mail->addReplyTo('contact@zotride.fr', 'Zot Ride');
+        $mail->addAddress($to);
+
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body    = $html;
+        $mail->AltBody = strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>', '</h2>'], "\n", $html));
+
+        $mail->send();
+        return true;
+    } catch (\Exception $e) {
+        error_log('ZotRide sendEmail error: ' . $mail->ErrorInfo);
+        return false;
+    }
 }
 
 function emailLayout(string $title, string $body): string {
@@ -468,6 +488,20 @@ function emailCompteValide(string $pseudo, string $roleName): string {
         . "<a href='https://zotride.fr' style='background:#e63946;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block'>Se connecter →</a>"
         . "</div>";
     return emailLayout('Compte validé – Zot Ride', $body);
+}
+
+function emailNouvelleInscription(string $pseudo, string $email, string $moto): string {
+    $body = "<h2 style='color:#fff;margin-top:0'>Nouvelle inscription !</h2>"
+        . "<p style='color:#aaa;line-height:1.7'>Un nouveau membre vient de s'inscrire sur <strong style='color:#e2e2e2'>Zot Ride</strong> et attend votre validation.</p>"
+        . "<table width='100%' style='background:#202020;border-radius:10px;padding:16px;margin:16px 0;border-collapse:collapse'>"
+        . "<tr><td style='padding:6px 0'><span style='color:#888;font-size:.85rem'>Pseudo</span></td><td style='padding:6px 0' align='right'><strong style='color:#fff'>" . htmlspecialchars($pseudo) . "</strong></td></tr>"
+        . "<tr><td style='padding:6px 0'><span style='color:#888;font-size:.85rem'>Email</span></td><td style='padding:6px 0' align='right'><strong style='color:#e2e2e2'>" . htmlspecialchars($email) . "</strong></td></tr>"
+        . "<tr><td style='padding:6px 0'><span style='color:#888;font-size:.85rem'>Moto</span></td><td style='padding:6px 0' align='right'><strong style='color:#e2e2e2'>" . htmlspecialchars($moto ?: '–') . "</strong></td></tr>"
+        . "</table>"
+        . "<div style='text-align:center;margin:24px 0'>"
+        . "<a href='https://zotride.fr' style='background:#e63946;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block'>Valider dans l'admin →</a>"
+        . "</div>";
+    return emailLayout('Nouvelle inscription – Zot Ride', $body);
 }
 
 function emailNouvelleSortie(string $titre, string $date, string $heure, string $organisateur): string {

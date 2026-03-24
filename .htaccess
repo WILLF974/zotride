@@ -11,7 +11,8 @@ RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^api/ - [R=204,L]
 
-# Routes API → api.php (sans conditions !-f !-d pour compatibilité LiteSpeed)
+# Routes API → api.php (condition !-d pour éviter conflit si dossier api/ existe)
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^api/(.*)$ api.php [QSA,L]
 
 # SPA fallback → index.html (sauf fichiers statiques existants)

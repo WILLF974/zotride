@@ -152,6 +152,7 @@ async function api(endpoint, method = 'GET', body = null) {
   const token = localStorage.getItem('token');
   const opts = {
     method,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: 'Bearer ' + token } : {})
