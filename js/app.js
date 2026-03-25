@@ -29,12 +29,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentUser) {
       bootApp();
     } else {
-      showPage('login');
-      initTour();
+      showPage('landing');
     }
   } else {
-    showPage('login');
-    initTour();
+    showPage('landing');
   }
 });
 
@@ -89,15 +87,16 @@ function showPage(page) {
     showPage('dashboard');
     return;
   }
-  // Pages auth sans connexion (forgot/reset password, partner, explore)
-  if (['forgot-password', 'reset-password', 'partner-login', 'partner-dashboard', 'explore'].includes(page)) {
+  // Pages auth sans connexion (landing, forgot/reset password, partner, explore)
+  if (['landing', 'forgot-password', 'reset-password', 'partner-login', 'partner-dashboard', 'explore'].includes(page)) {
     document.querySelectorAll('.page, .auth-page').forEach(el => el.classList.add('d-none'));
     const el = document.getElementById('page-' + page);
     if (el) el.classList.remove('d-none');
     currentPage = page;
     window.scrollTo(0, 0);
+    if (page === 'landing')           initLandingPage();
     if (page === 'partner-dashboard') loadPartnerDashboard();
-    if (page === 'explore') initExplorePage();
+    if (page === 'explore')           initExplorePage();
     updateMobileNav(page);
     return;
   }
