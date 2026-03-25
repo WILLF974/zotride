@@ -980,20 +980,23 @@ a:hover { color: #fff; }
 }
 
 /* ============================================================
-   LANDING PAGE
+   LANDING PAGE — architecture simple, mobile-first
    ============================================================ */
 
-/* Override auth-page defaults for landing */
+/* Override auth-page : plein écran fixe */
 #page-landing {
-  position: fixed;
+  position: fixed !important;
   inset: 0;
   padding: 0;
   background: var(--bg);
-  display: block;
+  display: block; /* PAS de !important : d-none doit pouvoir masquer la page */
   overflow: hidden;
+  min-height: unset;
+  align-items: unset;
+  justify-content: unset;
 }
 
-/* Fullscreen map */
+/* ── Carte plein écran ── */
 #landing-map {
   position: absolute;
   inset: 0;
@@ -1001,116 +1004,102 @@ a:hover { color: #fff; }
 }
 
 /* ── Top bar ── */
-.landing-topbar {
+#landing-topbar {
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 52px;
-  z-index: 30;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 1rem;
   background: rgba(13,13,13,.92);
   border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
-.landing-brand {
-  font-size: 1.35rem;
+.ltb-brand {
+  font-size: 1.2rem;
   font-weight: 900;
   letter-spacing: 2px;
   text-transform: uppercase;
   color: #fff;
 }
-.landing-brand span { color: var(--primary); }
-
-.landing-btn-login {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,.25);
-  color: #fff;
-  border-radius: 20px;
-  padding: .3rem .9rem;
+.ltb-brand span { color: var(--primary); }
+.ltb-login {
   font-size: .82rem;
-  transition: border-color .2s, background .2s;
+  font-weight: 600;
+  color: rgba(255,255,255,.8);
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 20px;
+  padding: .3rem .85rem;
+  text-decoration: none;
+  transition: all .15s;
+  -webkit-tap-highlight-color: transparent;
 }
-.landing-btn-login:hover { background: rgba(255,255,255,.08); color: #fff; border-color: rgba(255,255,255,.5); }
+.ltb-login:hover { color: #fff; border-color: rgba(255,255,255,.5); }
 
-/* ── Panel (sidebar desktop / bottom-sheet mobile) ── */
-.landing-panel {
+/* ── Panel commun ── */
+#landingPanel {
   position: absolute;
-  z-index: 20;
+  z-index: 90;
   background: var(--bg-card);
   display: flex;
   flex-direction: column;
 }
 
-/* Desktop: left sidebar 420px */
+/* ── Desktop : sidebar gauche 400px ── */
 @media (min-width: 992px) {
-  #landing-map        { left: 420px; top: 0; }
-  .landing-topbar     { right: auto; width: 420px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-  .landing-panel      { top: 52px; left: 0; bottom: 0; width: 420px; border-right: 1px solid var(--border); overflow-y: auto; }
-  .landing-bs-handle  { display: none !important; }
+  #landing-map    { left: 400px; top: 0; }
+  #landing-topbar { right: auto; width: 400px; border-right: 1px solid var(--border); }
+  #landingPanel   { top: 52px; left: 0; bottom: 0; width: 400px; border-right: 1px solid var(--border); overflow-y: auto; }
+  #landing-handle { display: none; }
+  #landing-scroll { display: block !important; }
 }
 
-/* Mobile: bottom sheet */
+/* ── Mobile : overlay fixe en bas ── */
 @media (max-width: 991px) {
-  .landing-topbar { right: 0; width: 100%; }
   #landing-map    { top: 52px; }
-  .landing-panel  {
-    bottom: 0; left: 0; right: 0;
+  #landing-topbar { right: 0; }
+  #landingPanel {
+    left: 0; right: 0; bottom: 0;
     border-radius: 20px 20px 0 0;
-    max-height: 80vh;
-    transform: translateY(calc(100% - 160px));
-    transition: transform .4s cubic-bezier(.32,.72,0,1);
-    box-shadow: 0 -6px 30px rgba(0,0,0,.55);
+    box-shadow: 0 -4px 24px rgba(0,0,0,.55);
     overflow: hidden;
+    max-height: 82vh;
   }
-  .landing-panel.expanded {
-    transform: translateY(0);
-    overflow-y: auto;
-  }
+  /* Zone déroulante : cachée par défaut, visible quand expanded */
+  #landing-scroll          { display: none; }
+  #landingPanel.expanded   { overflow-y: auto; }
+  #landingPanel.expanded #landing-scroll { display: block; }
 }
 
-/* Bottom sheet handle (mobile) */
-.landing-bs-handle {
-  width: 100%;
-  padding: .75rem 0 .5rem;
+/* ── Handle (mobile) ── */
+#landing-handle {
   display: flex;
   justify-content: center;
+  padding: .65rem 0 .3rem;
   cursor: pointer;
   flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
 }
-.landing-bs-bar {
+.lp-bar {
+  display: block;
   width: 40px; height: 4px;
   background: rgba(255,255,255,.2);
   border-radius: 2px;
 }
 
-/* Panel inner scroll */
-.landing-panel-scroll {
-  padding: 1rem 1.25rem 1.5rem;
+/* ── Zone sticky (chips + CTAs) ── */
+#landing-sticky {
+  padding: .4rem .9rem .85rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  min-width: 0;
+  gap: .5rem;
+  flex-shrink: 0;
 }
 
-/* ── Hero ── */
-.landing-hero-title {
-  font-size: 1.65rem;
-  font-weight: 900;
-  line-height: 1.2;
-  color: #fff;
-  margin-bottom: .5rem;
-}
-.landing-hero-sub {
-  color: var(--text-muted);
-  font-size: .9rem;
-  line-height: 1.55;
-  margin-bottom: 0;
-}
-
-/* ── Live counter / CTA banner ── */
+/* ── Live counter ── */
 .landing-live-counter {
   display: flex;
   align-items: center;
@@ -1118,8 +1107,8 @@ a:hover { color: #fff; }
   background: rgba(46,204,113,.08);
   border: 1px solid rgba(46,204,113,.2);
   border-radius: 10px;
-  padding: .55rem .85rem;
-  font-size: .85rem;
+  padding: .5rem .85rem;
+  font-size: .84rem;
   color: #2ecc71;
   font-weight: 600;
 }
@@ -1135,16 +1124,18 @@ a:hover { color: #fff; }
   0%,100% { box-shadow: 0 0 0 0 rgba(46,204,113,.5); }
   50%      { box-shadow: 0 0 0 5px rgba(46,204,113,0); }
 }
+
+/* ── CTA banner ── */
 .landing-cta-banner {
   background: rgba(230,57,70,.08);
   border: 1px solid rgba(230,57,70,.2);
   border-radius: 10px;
-  padding: .65rem .85rem;
+  padding: .6rem .85rem;
   font-size: .82rem;
   color: var(--text);
   display: flex;
   flex-direction: column;
-  gap: .35rem;
+  gap: .3rem;
 }
 .landing-cta-link {
   color: var(--primary);
@@ -1154,18 +1145,14 @@ a:hover { color: #fff; }
 }
 .landing-cta-link:hover { color: #fff; }
 
-/* ── Action chips ── */
-.landing-chips {
-  display: flex;
-  gap: .4rem;
-  flex-wrap: wrap;
-}
+/* ── Chips filtre ── */
+.landing-chips { display: flex; gap: .4rem; flex-wrap: wrap; }
 .landing-chip {
   background: var(--bg-card2);
   border: 1px solid var(--border);
   color: var(--text-muted);
   border-radius: 20px;
-  padding: .35rem .85rem;
+  padding: .32rem .8rem;
   font-size: .78rem;
   font-weight: 600;
   cursor: pointer;
@@ -1176,76 +1163,89 @@ a:hover { color: #fff; }
 .landing-chip:hover  { border-color: var(--accent); color: var(--accent); }
 .landing-chip.active { background: var(--accent); border-color: var(--accent); color: #1a1a1a; }
 
-/* ── Create tip tooltip ── */
+/* ── Boutons CTA ── */
+.lp-ctas { display: flex; flex-direction: column; }
+
+/* ── Zone déroulante ── */
+#landing-scroll {
+  padding: .25rem .9rem 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Hero ── */
+.lp-hero { padding: .75rem 0 .6rem; }
+.lp-hero-title {
+  font-size: 1.6rem;
+  font-weight: 900;
+  line-height: 1.2;
+  color: #fff;
+  margin-bottom: .45rem;
+}
+.lp-hero-sub {
+  color: var(--text-muted);
+  font-size: .88rem;
+  line-height: 1.55;
+  margin-bottom: 0;
+}
+
+/* ── Tooltip ── */
 .landing-create-tip {
   background: rgba(244,162,97,.1);
   border: 1px solid rgba(244,162,97,.3);
   border-radius: 10px;
-  padding: .55rem .85rem;
+  padding: .5rem .85rem;
   font-size: .8rem;
   color: var(--accent);
   display: flex;
   align-items: center;
   gap: .5rem;
-  animation: tipFadeIn .5s ease;
 }
-@keyframes tipFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 /* ── Section title ── */
-.landing-section-title {
-  font-size: .78rem;
+.lp-section-title {
+  font-size: .74rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .08em;
   color: var(--text-muted);
+  margin: .75rem 0 .5rem;
 }
 
 /* ── Parcours cards ── */
-.landing-parcours-list {
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
-}
+.landing-parcours-list { display: flex; flex-direction: column; gap: .45rem; }
 .lpc-card {
   background: var(--bg-card2);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: .7rem .9rem;
+  padding: .65rem .85rem;
   display: flex;
   align-items: center;
-  gap: .75rem;
+  gap: .7rem;
   cursor: pointer;
-  transition: border-color .15s, background .15s;
+  transition: border-color .15s;
   -webkit-tap-highlight-color: transparent;
 }
-.lpc-card:hover  { border-color: var(--accent); background: rgba(244,162,97,.05); }
+.lpc-card:hover { border-color: var(--accent); }
 .lpc-icon {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   flex-shrink: 0;
-  width: 40px; height: 40px;
+  width: 38px; height: 38px;
   border-radius: 10px;
   background: rgba(244,162,97,.12);
   display: flex; align-items: center; justify-content: center;
 }
 .lpc-info { flex: 1; min-width: 0; }
-.lpc-nom  { font-weight: 700; font-size: .88rem; color: #fff; }
-.lpc-desc { font-size: .75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lpc-nom  { font-weight: 700; font-size: .86rem; color: #fff; }
+.lpc-desc { font-size: .73rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lpc-dist { font-size: .72rem; color: var(--accent); font-weight: 600; flex-shrink: 0; }
 
-/* ── Join CTA ── */
-.landing-join-cta {
-  padding-top: .5rem;
-  border-top: 1px solid var(--border);
-}
-
-/* ── Map markers ── */
+/* ── Marqueurs carte ── */
 .lm-parcours {
   width: 34px; height: 34px;
   border-radius: 50%;
   border: 2px solid #fff;
   display: flex; align-items: center; justify-content: center;
-  color: #fff;
-  font-size: .8rem;
+  color: #fff; font-size: .8rem;
   box-shadow: 0 2px 8px rgba(0,0,0,.45);
 }
 .lm-partner {
@@ -1266,8 +1266,6 @@ a:hover { color: #fff; }
   color: #fff; font-weight: 700; font-size: .85rem;
   box-shadow: 0 0 0 4px rgba(76,201,240,.25);
 }
-
-/* Cluster markers */
 .lc-cluster {
   width: 36px; height: 36px;
   border-radius: 50%;
@@ -1286,7 +1284,7 @@ a:hover { color: #fff; }
    EXPLORE PAGE – split-view (panneau gauche + carte droite)
    ============================================================ */
 #page-explore {
-  display: flex !important;
+  display: flex; /* pas de !important : d-none doit pouvoir masquer la page */
   flex-direction: row;
   height: 100dvh;
   height: 100vh;
@@ -1387,6 +1385,8 @@ a:hover { color: #fff; }
 @media (max-width: 991px) {
   #page-explore {
     flex-direction: column;
+    /* height: 100dvh déjà défini dans la règle de base — couvre iOS */
+    overflow: visible; /* laisser le dropdown déborder sur la carte */
   }
   .explore-sidebar {
     width: 100%;
@@ -1394,16 +1394,44 @@ a:hover { color: #fff; }
     flex-direction: column;
     border-right: none;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow: visible; /* permettre au dropdown de passer par-dessus la carte */
+    z-index: 30;       /* au-dessus des couches Leaflet */
+  }
+  .explore-sidebar-search {
+    overflow: visible;
   }
   .explore-hint { display: none; }
   .explore-wp-list {
     flex: none;
-    max-height: 100px;
+    max-height: 80px;
   }
+  /* Hide sidebar CTA on mobile — replaced by fixed bottom bar */
+  .explore-sidebar-cta { display: none; }
   #explore-map {
     flex: 1;
-    min-height: 0;
+    min-height: 200px;
     height: auto;
+    z-index: 1; /* sous la sidebar */
+  }
+}
+
+/* Fixed bottom CTA for explore — visible uniquement quand la page explore est active */
+#explore-mobile-cta { display: none; }
+
+@media (max-width: 991px) {
+  /* Sélecteur frère adjacent : s'affiche seulement si #page-explore n'a pas .d-none */
+  #page-explore:not(.d-none) + #explore-mobile-cta {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: .65rem .9rem;
+    background: rgba(24,24,24,.97);
+    border-top: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    z-index: 50;
+    gap: .5rem;
+    align-items: center;
   }
 }
 
@@ -1414,6 +1442,19 @@ a:hover { color: #fff; }
   .auth-card { padding: 1.5rem 1.25rem; }
   .page-title { font-size: 1.3rem; }
   .dark-card { padding: 1rem; }
+}
+
+/* iOS fix : ancrer les formulaires au viewport (exclu : explore qui gère sa propre hauteur) */
+@media (max-width: 768px) {
+  .auth-page:not(#page-explore):not(#page-landing) {
+    position: fixed;
+    inset: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    align-items: flex-start;
+    padding-top: 1.25rem;
+    min-height: unset;
+  }
 }
 
 @media (max-width: 991px) {

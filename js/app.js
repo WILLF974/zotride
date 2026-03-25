@@ -112,6 +112,8 @@ function showPage(page) {
 
   currentPage = page;
   window.scrollTo(0, 0);
+  // iOS fix : scroll aussi le conteneur de la page (position:fixed sur mobile)
+  if (el) el.scrollTop = 0;
   updateMobileNav(page);
 
   // Bootstrap collapse navbar on mobile
@@ -619,7 +621,13 @@ function initExplorePage() {
       maxZoom: 19
     }).addTo(exploreMap);
     exploreMap.invalidateSize();
-    exploreMap.on('click', e => _exploreAddWp(e.latlng.lat, e.latlng.lng));
+    // iOS : la taille du conteneur peut changer après le premier paint
+    setTimeout(() => exploreMap && exploreMap.invalidateSize(), 400);
+    setTimeout(() => exploreMap && exploreMap.invalidateSize(), 900);
+    exploreMap.on('click', e => {
+      document.getElementById('exploreCityResults')?.classList.add('d-none');
+      _exploreAddWp(e.latlng.lat, e.latlng.lng);
+    });
     _renderExploreWpList();
     _syncExploreFab();
   }, 250);

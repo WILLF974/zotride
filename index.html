@@ -10,75 +10,80 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-  <link rel="stylesheet" href="/css/style.css?v=16">
+  <link rel="stylesheet" href="/css/style.css?v=26">
 </head>
 <body>
 
   <!-- ═══ PAGE : LANDING (page d'accueil publique) ════════════ -->
   <div class="auth-page d-none" id="page-landing">
 
-    <!-- Carte Leaflet en fond plein écran -->
+    <!-- Carte Leaflet plein écran -->
     <div id="landing-map"></div>
 
-    <!-- Top bar : logo + bouton connexion -->
-    <div class="landing-topbar">
-      <div class="landing-brand">🏍 Zot<span>Ride</span></div>
-      <a href="#" onclick="showPage('login');return false" class="landing-btn-login">
+    <!-- Top bar -->
+    <div id="landing-topbar">
+      <div class="ltb-brand">🏍 Zot<span>Ride</span></div>
+      <a href="#" onclick="showPage('login');return false" class="ltb-login">
         <i class="fas fa-sign-in-alt me-1"></i>Connexion
       </a>
     </div>
 
-    <!-- Panel : sidebar (≥lg) / bottom sheet (<lg) -->
-    <div class="landing-panel" id="landingPanel">
+    <!-- Panel (sidebar desktop / overlay bas mobile) -->
+    <div id="landingPanel">
 
-      <!-- Handle (mobile uniquement) -->
-      <div class="landing-bs-handle d-lg-none" onclick="toggleBottomSheet()" role="button" aria-label="Ouvrir le panneau">
-        <div class="landing-bs-bar"></div>
+      <!-- Handle mobile : tap pour dérouler -->
+      <div id="landing-handle" onclick="toggleBottomSheet()">
+        <span class="lp-bar"></span>
       </div>
 
-      <div class="landing-panel-scroll">
+      <!-- ── Zone fixe : toujours visible (chips + CTAs) ── -->
+      <div id="landing-sticky">
 
-        <!-- Hero -->
-        <div>
-          <h1 class="landing-hero-title">Ne roulez plus<br>jamais seul.</h1>
-          <p class="landing-hero-sub">Trouvez votre route, votre groupe, votre étape — sur l'île de La Réunion.</p>
-        </div>
-
-        <!-- Live counter / CTA banner (rempli par JS) -->
+        <!-- Compteur live / bannière CTA (rempli par JS) -->
         <div id="landing-live-counter" class="landing-live-counter" style="display:none"></div>
         <div id="landing-cta-banner"   class="landing-cta-banner"   style="display:none"></div>
 
-        <!-- Chips filtre -->
+        <!-- Chips filtre carte -->
         <div class="landing-chips" id="landing-chips">
-          <button class="landing-chip active" data-filter="all"      onclick="setLandingFilter('all')">🗺️ Tout voir</button>
-          <button class="landing-chip"        data-filter="live"     onclick="setLandingFilter('live')">🏍️ Qui roule ?</button>
-          <button class="landing-chip"        data-filter="parcours" onclick="setLandingFilter('parcours')">📍 Parcours</button>
+          <button class="landing-chip active" data-filter="all"      onclick="setLandingFilter('all')">🗺️ Tout</button>
+          <button class="landing-chip"        data-filter="live"     onclick="setLandingFilter('live')">🏍️ Live</button>
+          <button class="landing-chip"        data-filter="parcours" onclick="setLandingFilter('parcours')">📍 Routes</button>
           <button class="landing-chip"        data-filter="partners" onclick="setLandingFilter('partners')">🍽️ Pauses</button>
         </div>
 
-        <!-- Tooltip "Commencez ici" (injecté par JS si 1ère visite) -->
-        <div id="landing-create-tip" class="landing-create-tip d-none">
-          <i class="fas fa-lightbulb"></i>
-          Commencez ici pour tracer votre première balade péi !
-        </div>
-
-        <!-- Parcours emblématiques (injecté par JS) -->
-        <div class="landing-section-title">✦ Parcours emblématiques</div>
-        <div id="landing-parcours-list" class="landing-parcours-list"></div>
-
-        <!-- CTA inscription / explore sans compte -->
-        <div class="landing-join-cta">
-          <p class="text-muted small mb-3">Rejoignez le club pour accéder à toutes les sorties et organiser les vôtres.</p>
-          <button onclick="showPage('register')" class="btn btn-primary w-100 fw-bold mb-2" style="border-radius:12px;min-height:46px">
+        <!-- Boutons d'action -->
+        <div class="lp-ctas">
+          <button onclick="showPage('register')" class="btn btn-primary w-100 fw-bold"
+            style="border-radius:12px;min-height:46px;font-size:.92rem">
             <i class="fas fa-user-plus me-2"></i>Créer un compte gratuit
           </button>
-          <button onclick="showPage('explore')" class="btn w-100" style="background:var(--bg-card2);border:1px solid var(--border);color:var(--accent);border-radius:12px;min-height:42px">
+          <button onclick="showPage('explore')" class="btn w-100 mt-2"
+            style="background:var(--bg-card2);border:1px solid var(--border);color:var(--accent);border-radius:12px;min-height:42px;font-size:.88rem">
             <i class="fas fa-map-marked-alt me-2"></i>Tracer sans compte
           </button>
         </div>
 
-      </div><!-- /.landing-panel-scroll -->
-    </div><!-- /.landing-panel -->
+      </div><!-- /#landing-sticky -->
+
+      <!-- ── Zone déroulante : hero + parcours (cachée sur mobile) ── -->
+      <div id="landing-scroll">
+
+        <div class="lp-hero">
+          <h1 class="lp-hero-title">Ne roulez plus<br>jamais seul.</h1>
+          <p class="lp-hero-sub">Trouvez votre route, votre groupe, votre étape — sur l'île de La Réunion.</p>
+        </div>
+
+        <div id="landing-create-tip" class="landing-create-tip d-none">
+          <i class="fas fa-lightbulb me-1"></i>
+          Commencez ici pour tracer votre première balade péi !
+        </div>
+
+        <div class="lp-section-title">✦ Parcours emblématiques</div>
+        <div id="landing-parcours-list" class="landing-parcours-list"></div>
+
+      </div><!-- /#landing-scroll -->
+
+    </div><!-- /#landingPanel -->
 
   </div><!-- /#page-landing -->
 
@@ -300,10 +305,12 @@
         <button onclick="showPage('landing')" class="explore-back-btn" aria-label="Retour">
           <i class="fas fa-arrow-left"></i>
         </button>
-        <div>
+        <div style="flex:1">
           <div class="fw-bold" style="font-size:.95rem;color:#fff">Tracer mon itinéraire</div>
           <div style="font-size:.72rem;color:var(--text-muted)">sans compte requis</div>
         </div>
+        <!-- Badge compteur points (visible sur mobile) -->
+        <span id="explore-wp-count" class="d-lg-none" style="display:none!important;background:var(--primary);color:#fff;font-size:.7rem;font-weight:700;border-radius:10px;padding:2px 8px"></span>
       </div>
 
       <!-- Recherche lieu -->
@@ -348,6 +355,18 @@
     <!-- ── Carte ── -->
     <div id="explore-map"></div>
 
+  </div>
+
+  <!-- ── CTA fixe mobile (remplace sidebar CTA sous 992px) ── -->
+  <div id="explore-mobile-cta">
+    <button class="btn btn-primary fw-bold flex-fill" onclick="goRegisterFromExplore()"
+      style="border-radius:12px;min-height:46px;font-size:.9rem">
+      <i class="fas fa-user-plus me-2"></i>Créer un compte gratuit
+    </button>
+    <button class="btn" onclick="showPage('landing')"
+      style="border-radius:12px;min-height:46px;font-size:.85rem;background:var(--bg-card2);border:1px solid var(--border);color:var(--text-muted);white-space:nowrap">
+      <i class="fas fa-arrow-left me-1"></i>Retour
+    </button>
   </div>
 
   <!-- Modal: capturer l'email pour sauvegarder la route -->
@@ -1185,7 +1204,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
-  <script src="/js/app.js?v=10"></script>
+  <script src="/js/app.js?v=13"></script>
   <script src="/js/map.js?v=4"></script>
   <script src="/js/sorties.js?v=5"></script>
   <script src="/js/admin.js?v=5"></script>
