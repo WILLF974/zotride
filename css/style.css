@@ -1332,49 +1332,52 @@ a:hover { color: #fff; }
 }
 .explore-wp-list .wp-item:last-child { border-bottom: none; }
 
-/* CTA flottant — toujours visible en bas de la page explore */
-.explore-cta-float {
+/* ── FAB flottant explore (côté bas-droit, ne couvre pas la carte) ── */
+.explore-fab {
   position: fixed;
-  bottom: 0; left: 0; right: 0;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  right: 1rem;
   z-index: 200;
-  padding: .75rem 1rem calc(.75rem + env(safe-area-inset-bottom, 0px));
-  background: rgba(13,13,13,.96);
-  border-top: 1px solid var(--border);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
-  gap: .5rem;
+  align-items: flex-end;
+  gap: .45rem;
+  pointer-events: none; /* laisse passer les clics sur la carte en dehors des boutons */
 }
-.explore-cta-float .btn-cta-primary {
+.explore-fab > * { pointer-events: auto; }
+
+.explore-fab-primary {
   background: var(--primary);
   color: #fff;
   border: none;
-  border-radius: 12px;
-  padding: .65rem 1rem;
+  border-radius: 24px;
+  padding: .6rem 1.1rem;
   font-weight: 700;
-  font-size: .9rem;
-  width: 100%;
-  min-height: 46px;
+  font-size: .85rem;
   cursor: pointer;
-  transition: background .15s;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(230,57,70,.45);
+  transition: background .15s, transform .1s;
+  -webkit-tap-highlight-color: transparent;
 }
-.explore-cta-float .btn-cta-primary:hover { background: var(--primary-dark); }
-.explore-cta-float .btn-cta-secondary {
-  background: transparent;
+.explore-fab-primary:hover  { background: var(--primary-dark); }
+.explore-fab-primary:active { transform: scale(.96); }
+
+.explore-fab-secondary {
+  background: rgba(13,13,13,.88);
   color: var(--text-muted);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: .45rem 1rem;
-  font-size: .8rem;
-  width: 100%;
+  border-radius: 20px;
+  padding: .35rem .8rem;
+  font-size: .75rem;
   cursor: pointer;
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   transition: color .15s, border-color .15s;
+  -webkit-tap-highlight-color: transparent;
 }
-.explore-cta-float .btn-cta-secondary:hover { color: #fff; border-color: #555; }
-
-/* Décalage du bas de la page pour ne pas cacher le contenu */
-#page-explore { padding-bottom: 130px; }
+.explore-fab-secondary:hover { color: #fff; border-color: #555; }
 
 /* ============================================================
    RESPONSIVE

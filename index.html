@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-  <link rel="stylesheet" href="/css/style.css?v=14">
+  <link rel="stylesheet" href="/css/style.css?v=15">
 </head>
 <body>
 
@@ -317,19 +317,17 @@
       <p class="text-muted small mb-0">Clique sur la carte pour ajouter des étapes</p>
     </div>
 
-    <!-- CTA flottant : toujours visible en bas d'écran -->
-    <div class="explore-cta-float">
-      <button class="btn-cta-primary" onclick="saveExploreRoute()">
-        <i class="fas fa-user-plus me-2"></i>Créer un compte gratuit
+    <!-- FAB flottant bas-droite : toujours visible, ne bloque pas la carte -->
+    <div class="explore-fab">
+      <button class="explore-fab-primary" onclick="goRegisterFromExplore()">
+        <i class="fas fa-user-plus me-1"></i>Créer un compte
       </button>
-      <div style="display:flex;align-items:center;gap:.5rem">
-        <button class="btn-cta-secondary" onclick="clearExploreWaypoints()" style="flex:0 0 auto;width:auto;padding:.45rem .85rem">
-          <i class="fas fa-trash"></i>
-        </button>
-        <button class="btn-cta-secondary" style="flex:1" onclick="saveExploreRoute()">
-          <i class="fas fa-save me-1"></i>Sauvegarder l'itinéraire
-        </button>
-      </div>
+      <button class="explore-fab-secondary" id="explore-fab-save" onclick="saveExploreRoute()" style="display:none">
+        <i class="fas fa-save me-1"></i>Sauvegarder l'itinéraire
+      </button>
+      <button class="explore-fab-secondary" id="explore-fab-clear" onclick="clearExploreWaypoints()" style="display:none">
+        <i class="fas fa-trash me-1"></i>Effacer
+      </button>
     </div>
   </div>
 
@@ -1168,7 +1166,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
-  <script src="/js/app.js?v=8"></script>
+  <script src="/js/app.js?v=9"></script>
   <script src="/js/map.js?v=4"></script>
   <script src="/js/sorties.js?v=5"></script>
   <script src="/js/admin.js?v=5"></script>

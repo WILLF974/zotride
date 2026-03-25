@@ -611,14 +611,18 @@ function initExplorePage() {
   exploreWps = []; exploreMarkers = []; explorePolyline = null;
 
   setTimeout(() => {
-    exploreMap = L.map('explore-map').setView([-21.1151, 55.5364], 11);
+    const container = document.getElementById('explore-map');
+    if (!container) return;
+    exploreMap = L.map(container, { zoomControl: true }).setView([-21.1151, 55.5364], 11);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19
     }).addTo(exploreMap);
+    exploreMap.invalidateSize();
     exploreMap.on('click', e => _exploreAddWp(e.latlng.lat, e.latlng.lng));
     _renderExploreWpList();
-  }, 120);
+    _syncExploreFab();
+  }, 250);
 }
 
 function _exploreAddWp(lat, lng) {
@@ -645,6 +649,7 @@ function _exploreAddWp(lat, lng) {
     }).addTo(exploreMap);
   }
   _renderExploreWpList();
+  _syncExploreFab();
 }
 
 function clearExploreWaypoints() {
@@ -652,6 +657,15 @@ function clearExploreWaypoints() {
   exploreMarkers = []; exploreWps = [];
   if (explorePolyline) { explorePolyline.remove(); explorePolyline = null; }
   _renderExploreWpList();
+  _syncExploreFab();
+}
+
+function _syncExploreFab() {
+  const hasPts = exploreWps.length > 0;
+  const btnSave  = document.getElementById('explore-fab-save');
+  const btnClear = document.getElementById('explore-fab-clear');
+  if (btnSave)  btnSave.style.display  = hasPts ? '' : 'none';
+  if (btnClear) btnClear.style.display = hasPts ? '' : 'none';
 }
 
 function _renderExploreWpList() {
@@ -706,9 +720,15 @@ function selectExploreCity(lat, lng, label) {
   if (exploreMap) exploreMap.setView([parseFloat(lat), parseFloat(lng)], 14);
 }
 
+// Bouton "Créer un compte" : toujours accessible, route sauvegardée si présente
+function goRegisterFromExplore() {
+  localStorage.setItem('zr_pending_route', JSON.stringify(exploreWps));
+  showPage('register');
+}
+
 function saveExploreRoute() {
   if (!exploreWps.length) {
-    showToast('Ajoute au moins un point sur la carte', 'error');
+    showToast('Ajoute au moins un point sur la carte d\'abord', 'error');
     return;
   }
   const modal = bootstrap.Modal.getOrCreate(document.getElementById('modalSaveExplore'));
