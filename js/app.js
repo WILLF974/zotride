@@ -328,7 +328,7 @@ function logout() {
   document.getElementById('nav-admin').style.display = 'none';
   const navM = document.getElementById('nav-members');
   if (navM) navM.style.display = 'none';
-  showPage('login');
+  showPage('landing');
 }
 
 // ── Notifications ─────────────────────────────────────────────

@@ -1285,8 +1285,12 @@ a:hover { color: #fff; }
 #page-explore {
   height: 100dvh;
   height: 100vh;
-  display: flex;
+  display: flex !important;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  background: var(--bg);
 }
 .explore-header {
   padding: .65rem 1rem;
