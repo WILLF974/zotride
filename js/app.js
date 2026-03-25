@@ -29,10 +29,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentUser) {
       bootApp();
     } else {
-      showPage('login');
+      showPage('landing');
     }
   } else {
-    showPage('login');
+    showPage('landing');
   }
 });
 
@@ -87,14 +87,17 @@ function showPage(page) {
     showPage('dashboard');
     return;
   }
-  // Pages auth sans connexion (forgot/reset password, partner)
-  if (['forgot-password', 'reset-password', 'partner-login', 'partner-dashboard'].includes(page)) {
+  // Pages auth sans connexion (landing, forgot/reset password, partner, explore)
+  if (['landing', 'forgot-password', 'reset-password', 'partner-login', 'partner-dashboard', 'explore'].includes(page)) {
     document.querySelectorAll('.page, .auth-page').forEach(el => el.classList.add('d-none'));
     const el = document.getElementById('page-' + page);
     if (el) el.classList.remove('d-none');
     currentPage = page;
     window.scrollTo(0, 0);
+    if (page === 'landing')           initLandingPage();
     if (page === 'partner-dashboard') loadPartnerDashboard();
+    if (page === 'explore')           initExplorePage();
+    updateMobileNav(page);
     return;
   }
   document.querySelectorAll('.page, .auth-page').forEach(el => el.classList.add('d-none'));
@@ -109,6 +112,7 @@ function showPage(page) {
 
   currentPage = page;
   window.scrollTo(0, 0);
+  updateMobileNav(page);
 
   // Bootstrap collapse navbar on mobile
   const navCollapse = document.getElementById('navContent');
@@ -332,12 +336,14 @@ async function pollNotifications() {
   try {
     const data = await api('/notifications');
     const badge = document.getElementById('notif-count');
-    if (data.unreadCount > 0) {
-      badge.textContent = data.unreadCount;
+    const count = data.unreadCount || 0;
+    if (count > 0) {
+      badge.textContent = count;
       badge.style.display = 'block';
     } else {
       badge.style.display = 'none';
     }
+    syncMobileNotifBadge(count);
   } catch { /* ignore */ }
 }
 
@@ -518,4 +524,219 @@ function fmtDatetime(str) {
   if (isNaN(d.getTime())) return str;
   // toLocaleString (pas toLocaleDateString) pour inclure heure+minute sans erreur Safari
   return d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Guided Tour (micro-onboarding) ────────────────────────────
+let _tourStep = 0;
+
+function initTour() {
+  if (localStorage.getItem('zr_tour_done')) return;
+  const overlay = document.getElementById('tour-overlay');
+  if (!overlay) return;
+  _tourStep = 0;
+  _tourRender();
+  overlay.classList.remove('d-none');
+}
+
+function _tourRender() {
+  document.querySelectorAll('.tour-slide').forEach((el, i) => {
+    el.classList.toggle('active', i === _tourStep);
+  });
+  document.querySelectorAll('.tour-dot').forEach((el, i) => {
+    el.classList.toggle('active', i === _tourStep);
+  });
+  const btn = document.getElementById('tour-btn-next');
+  if (btn) btn.textContent = _tourStep === 2 ? "C'est parti !" : 'Suivant';
+}
+
+function tourNext() {
+  if (_tourStep < 2) {
+    _tourStep++;
+    _tourRender();
+  } else {
+    tourFinish();
+  }
+}
+
+function tourSkip() { tourFinish(); }
+
+function tourFinish() {
+  localStorage.setItem('zr_tour_done', '1');
+  const overlay = document.getElementById('tour-overlay');
+  if (!overlay) return;
+  overlay.classList.add('tour-out');
+  setTimeout(() => overlay.classList.add('d-none'), 300);
+}
+
+// ── Mobile Bottom Nav ──────────────────────────────────────────
+function updateMobileNav(page) {
+  const nav = document.getElementById('mobileNav');
+  if (!nav) return;
+  if (!currentUser) {
+    nav.classList.remove('visible');
+    document.body.classList.remove('has-mobile-nav');
+    return;
+  }
+  nav.classList.add('visible');
+  document.body.classList.add('has-mobile-nav');
+
+  nav.querySelectorAll('.mnav-item').forEach(el => el.classList.remove('active'));
+  const active = document.getElementById('mnav-' + page);
+  if (active) active.classList.add('active');
+
+  // Sync "Organiser" visibility
+  const createBtn = document.getElementById('mnav-create-sortie');
+  if (createBtn) createBtn.style.display = userLevel() >= 2 ? '' : 'none';
+}
+
+function syncMobileNotifBadge(count) {
+  const badge = document.getElementById('mnav-notif-badge');
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.style.display = 'block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ── Pre-auth Explore Page ──────────────────────────────────────
+let exploreMap      = null;
+let exploreWps      = [];
+let exploreMarkers  = [];
+let explorePolyline = null;
+
+function initExplorePage() {
+  if (exploreMap) { exploreMap.remove(); exploreMap = null; }
+  exploreWps = []; exploreMarkers = []; explorePolyline = null;
+
+  setTimeout(() => {
+    exploreMap = L.map('explore-map').setView([-21.1151, 55.5364], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19
+    }).addTo(exploreMap);
+    exploreMap.on('click', e => _exploreAddWp(e.latlng.lat, e.latlng.lng));
+    _renderExploreWpList();
+  }, 120);
+}
+
+function _exploreAddWp(lat, lng) {
+  const idx   = exploreWps.length;
+  const first = idx === 0;
+  const nom   = first ? 'Point de rassemblement' : `Étape ${idx}`;
+  exploreWps.push({ lat, lng, nom });
+
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="width:30px;height:30px;background:${first ? '#e63946' : '#f4a261'};border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.5)">${idx + 1}</div>`,
+    iconSize: [30, 30], iconAnchor: [15, 15]
+  });
+  exploreMarkers.push(
+    L.marker([lat, lng], { icon })
+      .addTo(exploreMap)
+      .bindPopup(`<b>${sanitize(nom)}</b>`)
+  );
+
+  if (explorePolyline) { explorePolyline.remove(); explorePolyline = null; }
+  if (exploreWps.length >= 2) {
+    explorePolyline = L.polyline(exploreWps.map(w => [w.lat, w.lng]), {
+      color: '#e63946', weight: 3, opacity: .8, dashArray: '8 6'
+    }).addTo(exploreMap);
+  }
+  _renderExploreWpList();
+}
+
+function clearExploreWaypoints() {
+  exploreMarkers.forEach(m => m.remove());
+  exploreMarkers = []; exploreWps = [];
+  if (explorePolyline) { explorePolyline.remove(); explorePolyline = null; }
+  _renderExploreWpList();
+}
+
+function _renderExploreWpList() {
+  const el = document.getElementById('explore-wp-list');
+  if (!el) return;
+  if (!exploreWps.length) {
+    el.innerHTML = '<p class="text-muted small mb-0">Clique sur la carte pour ajouter des étapes</p>';
+    return;
+  }
+  el.innerHTML = exploreWps.map((wp, i) => `
+    <div class="wp-item">
+      <div class="wp-num ${i === 0 ? 'first' : 'other'}">${i + 1}</div>
+      <span style="flex:1;font-size:.82rem">${sanitize(wp.nom)}</span>
+      <small class="text-muted" style="font-size:.7rem">${wp.lat.toFixed(4)}, ${wp.lng.toFixed(4)}</small>
+    </div>
+  `).join('');
+}
+
+async function searchExploreCity() {
+  const input   = document.getElementById('exploreCitySearch');
+  const results = document.getElementById('exploreCityResults');
+  const query   = input?.value.trim();
+  if (!query) return;
+
+  results.innerHTML = '<div class="city-result-searching"><i class="fas fa-spinner fa-spin me-2"></i>Recherche…</div>';
+  results.classList.remove('d-none');
+
+  try {
+    const url  = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(query)}`;
+    const data = await fetch(url, { headers: { 'Accept-Language': 'fr' } }).then(r => r.json());
+
+    if (!data.length) {
+      results.innerHTML = '<div class="city-result-searching text-muted">Aucun résultat</div>';
+      return;
+    }
+    results.innerHTML = data.map(item => `
+      <div class="city-result-item" onclick="selectExploreCity(${item.lat}, ${item.lon}, '${sanitize(item.display_name).replace(/'/g, '&#39;')}')">
+        <i class="fas fa-map-marker-alt"></i>
+        <span>${sanitize(item.display_name)}</span>
+      </div>
+    `).join('');
+  } catch {
+    results.innerHTML = '<div class="city-result-searching text-danger">Erreur de recherche</div>';
+  }
+}
+
+function selectExploreCity(lat, lng, label) {
+  const input   = document.getElementById('exploreCitySearch');
+  const results = document.getElementById('exploreCityResults');
+  if (input) input.value = label.split(',')[0];
+  results.classList.add('d-none');
+  if (exploreMap) exploreMap.setView([parseFloat(lat), parseFloat(lng)], 14);
+}
+
+function saveExploreRoute() {
+  if (!exploreWps.length) {
+    showToast('Ajoute au moins un point sur la carte', 'error');
+    return;
+  }
+  const modal = bootstrap.Modal.getOrCreate(document.getElementById('modalSaveExplore'));
+  modal.show();
+}
+
+function goRegisterWithRoute() {
+  const pseudo = document.getElementById('exploreSavePseudo')?.value.trim();
+  const email  = document.getElementById('exploreSaveEmail')?.value.trim();
+  const errEl  = document.getElementById('exploreSaveError');
+  errEl.classList.add('d-none');
+
+  if (!pseudo || !email) {
+    errEl.textContent = 'Remplis le pseudo et l\'email.';
+    errEl.classList.remove('d-none');
+    return;
+  }
+
+  // Sauvegarder la route en localStorage pour la récupérer après inscription
+  localStorage.setItem('zr_pending_route', JSON.stringify(exploreWps));
+
+  // Pré-remplir le formulaire d'inscription
+  bootstrap.Modal.getInstance(document.getElementById('modalSaveExplore'))?.hide();
+  showPage('register');
+  setTimeout(() => {
+    const pEl = document.getElementById('regPseudo');
+    const eEl = document.getElementById('regEmail');
+    if (pEl) pEl.value = pseudo;
+    if (eEl) eEl.value = email;
+  }, 100);
 }
