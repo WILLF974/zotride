@@ -661,9 +661,11 @@ function clearExploreWaypoints() {
 }
 
 function _syncExploreFab() {
-  const hasPts = exploreWps.length > 0;
-  const btnSave  = document.getElementById('explore-fab-save');
-  const btnClear = document.getElementById('explore-fab-clear');
+  const hasPts  = exploreWps.length > 0;
+  const hint    = document.getElementById('explore-hint');
+  const btnSave  = document.getElementById('explore-btn-save');
+  const btnClear = document.getElementById('explore-btn-clear');
+  if (hint)     hint.style.display     = hasPts ? 'none' : '';
   if (btnSave)  btnSave.style.display  = hasPts ? '' : 'none';
   if (btnClear) btnClear.style.display = hasPts ? '' : 'none';
 }

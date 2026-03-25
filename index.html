@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-  <link rel="stylesheet" href="/css/style.css?v=15">
+  <link rel="stylesheet" href="/css/style.css?v=16">
 </head>
 <body>
 
@@ -291,44 +291,63 @@
 
   <!-- ═══ PAGE : EXPLORER (pre-auth itinéraire) ═══════════════ -->
   <div class="auth-page d-none" id="page-explore">
-    <div class="explore-header">
-      <button onclick="showPage('landing')" class="btn btn-sm p-0" style="background:transparent;color:var(--text-muted);font-size:1.1rem;min-height:auto" aria-label="Retour">
-        <i class="fas fa-arrow-left"></i>
-      </button>
-      <span class="fw-bold" style="font-size:1rem">Tracer mon itinéraire</span>
-      <small class="text-muted ms-1" style="font-size:.75rem">(sans compte)</small>
-    </div>
 
-    <div class="explore-search-bar">
-      <div class="input-group input-group-sm">
-        <input type="search" id="exploreCitySearch" class="form-control"
-          placeholder="Rechercher un lieu sur Réunion…"
-          autocomplete="off"
-          oninput="if(!this.value.trim())document.getElementById('exploreCityResults').classList.add('d-none')"
-          onkeydown="if(event.key==='Enter')searchExploreCity()">
-        <button class="btn btn-primary" onclick="searchExploreCity()"><i class="fas fa-search"></i></button>
+    <!-- ── Panneau gauche (desktop) / header+search (mobile) ── -->
+    <div class="explore-sidebar">
+
+      <!-- Header -->
+      <div class="explore-sidebar-header">
+        <button onclick="showPage('landing')" class="explore-back-btn" aria-label="Retour">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <div>
+          <div class="fw-bold" style="font-size:.95rem;color:#fff">Tracer mon itinéraire</div>
+          <div style="font-size:.72rem;color:var(--text-muted)">sans compte requis</div>
+        </div>
       </div>
-      <div id="exploreCityResults" class="city-results d-none" style="position:absolute;z-index:1050;left:.75rem;right:.75rem;top:calc(100% - .45rem)"></div>
+
+      <!-- Recherche lieu -->
+      <div class="explore-sidebar-search">
+        <div class="input-group input-group-sm">
+          <input type="search" id="exploreCitySearch" class="form-control"
+            placeholder="Rechercher un lieu…"
+            autocomplete="off"
+            oninput="if(!this.value.trim())document.getElementById('exploreCityResults').classList.add('d-none')"
+            onkeydown="if(event.key==='Enter')searchExploreCity()">
+          <button class="btn btn-primary" onclick="searchExploreCity()"><i class="fas fa-search"></i></button>
+        </div>
+        <div id="exploreCityResults" class="city-results d-none" style="position:absolute;z-index:1050;left:0;right:0;top:100%"></div>
+      </div>
+
+      <!-- Instruction (disparaît quand il y a des points) -->
+      <div id="explore-hint" class="explore-hint">
+        <i class="fas fa-hand-pointer" style="font-size:1.3rem;color:var(--accent);margin-bottom:.4rem"></i>
+        <span>Clique sur la carte pour ajouter des étapes à ton itinéraire</span>
+      </div>
+
+      <!-- Liste des waypoints (scrollable) -->
+      <div id="explore-wp-list" class="explore-wp-list"></div>
+
+      <!-- CTA toujours visible en bas du panneau -->
+      <div class="explore-sidebar-cta">
+        <button class="btn btn-primary w-100 fw-bold" onclick="goRegisterFromExplore()"
+          style="border-radius:12px;min-height:46px;font-size:.92rem">
+          <i class="fas fa-user-plus me-2"></i>Créer un compte gratuit
+        </button>
+        <button id="explore-btn-save" class="btn w-100 mt-2" onclick="saveExploreRoute()"
+          style="display:none;background:var(--bg-card2);border:1px solid var(--border);color:var(--accent);border-radius:10px;min-height:40px;font-size:.82rem">
+          <i class="fas fa-save me-1"></i>Sauvegarder l'itinéraire
+        </button>
+        <button id="explore-btn-clear" class="btn w-100 mt-1" onclick="clearExploreWaypoints()"
+          style="display:none;background:transparent;border:none;color:var(--text-muted);font-size:.78rem">
+          <i class="fas fa-trash me-1"></i>Effacer tous les points
+        </button>
+      </div>
     </div>
 
+    <!-- ── Carte ── -->
     <div id="explore-map"></div>
 
-    <div class="explore-wp-list" id="explore-wp-list">
-      <p class="text-muted small mb-0">Clique sur la carte pour ajouter des étapes</p>
-    </div>
-
-    <!-- FAB flottant bas-droite : toujours visible, ne bloque pas la carte -->
-    <div class="explore-fab">
-      <button class="explore-fab-primary" onclick="goRegisterFromExplore()">
-        <i class="fas fa-user-plus me-1"></i>Créer un compte
-      </button>
-      <button class="explore-fab-secondary" id="explore-fab-save" onclick="saveExploreRoute()" style="display:none">
-        <i class="fas fa-save me-1"></i>Sauvegarder l'itinéraire
-      </button>
-      <button class="explore-fab-secondary" id="explore-fab-clear" onclick="clearExploreWaypoints()" style="display:none">
-        <i class="fas fa-trash me-1"></i>Effacer
-      </button>
-    </div>
   </div>
 
   <!-- Modal: capturer l'email pour sauvegarder la route -->
@@ -1166,7 +1185,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
-  <script src="/js/app.js?v=9"></script>
+  <script src="/js/app.js?v=10"></script>
   <script src="/js/map.js?v=4"></script>
   <script src="/js/sorties.js?v=5"></script>
   <script src="/js/admin.js?v=5"></script>
