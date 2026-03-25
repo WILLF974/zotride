@@ -8,9 +8,44 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="/css/style.css?v=10">
+  <link rel="stylesheet" href="/css/style.css?v=11">
 </head>
 <body>
+
+  <!-- ═══ TOUR OVERLAY (micro-onboarding 3 étapes) ═══════════ -->
+  <div id="tour-overlay" class="tour-overlay d-none" role="dialog" aria-modal="true" aria-label="Bienvenue sur Zot Ride">
+    <div class="tour-inner">
+      <button class="tour-skip" onclick="tourSkip()">Passer <i class="fas fa-times ms-1"></i></button>
+
+      <!-- Step 1 -->
+      <div class="tour-slide active" data-step="0">
+        <span class="tour-icon">🗺️</span>
+        <h2 class="tour-title">Trace ta route</h2>
+        <p class="tour-desc">Clique sur la carte pour ajouter des étapes et créer l'itinéraire idéal de ta sortie.</p>
+      </div>
+      <!-- Step 2 -->
+      <div class="tour-slide" data-step="1">
+        <span class="tour-icon">🍽️</span>
+        <h2 class="tour-title">Choisis ton escale</h2>
+        <p class="tour-desc">Découvre les partenaires Zot Ride près de chaque étape : restos, stations, mécanos bienveillants…</p>
+      </div>
+      <!-- Step 3 -->
+      <div class="tour-slide" data-step="2">
+        <span class="tour-icon">👥</span>
+        <h2 class="tour-title">Partage avec ton groupe</h2>
+        <p class="tour-desc">Invite les membres, partage ta position en temps réel et roule ensemble sur l'île.</p>
+      </div>
+
+      <div class="tour-dots">
+        <span class="tour-dot active"></span>
+        <span class="tour-dot"></span>
+        <span class="tour-dot"></span>
+      </div>
+      <div>
+        <button id="tour-btn-next" class="btn btn-primary" onclick="tourNext()">Suivant</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ═══ NAVBAR ═══════════════════════════════════════════════ -->
   <nav class="navbar navbar-expand-lg" id="mainNav" style="display:none">
@@ -117,6 +152,12 @@
             <i class="fas fa-handshake me-1"></i>Espace Partenaire
           </a>
         </div>
+        <hr style="border-color:var(--border);margin:1.25rem 0 1rem">
+        <div class="text-center">
+          <a href="#" onclick="showPage('explore')" class="btn btn-sm w-100" style="background:var(--bg-card2);border:1px solid var(--border);color:var(--accent);font-weight:600">
+            <i class="fas fa-map-marked-alt me-2"></i>Tracer un itinéraire sans compte
+          </a>
+        </div>
       </div>
     </div>
   </div>
@@ -174,6 +215,71 @@
             <i class="fas fa-check me-2"></i>Enregistrer le mot de passe
           </button>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PAGE : EXPLORER (pre-auth itinéraire) ═══════════════ -->
+  <div class="auth-page d-none" id="page-explore">
+    <div class="explore-header">
+      <button onclick="showPage('login')" class="btn btn-sm p-0" style="background:transparent;color:var(--text-muted);font-size:1.1rem;min-height:auto" aria-label="Retour">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+      <span class="fw-bold" style="font-size:1rem">Tracer mon itinéraire</span>
+      <small class="text-muted ms-1" style="font-size:.75rem">(sans compte)</small>
+    </div>
+
+    <div class="explore-search-bar">
+      <div class="input-group input-group-sm">
+        <input type="search" id="exploreCitySearch" class="form-control"
+          placeholder="Rechercher un lieu sur Réunion…"
+          autocomplete="off"
+          oninput="if(!this.value.trim())document.getElementById('exploreCityResults').classList.add('d-none')"
+          onkeydown="if(event.key==='Enter')searchExploreCity()">
+        <button class="btn btn-primary" onclick="searchExploreCity()"><i class="fas fa-search"></i></button>
+      </div>
+      <div id="exploreCityResults" class="city-results d-none" style="position:absolute;z-index:1050;left:.75rem;right:.75rem;top:calc(100% - .45rem)"></div>
+    </div>
+
+    <div id="explore-map"></div>
+
+    <div class="explore-wp-list" id="explore-wp-list">
+      <p class="text-muted small mb-0">Clique sur la carte pour ajouter des étapes</p>
+    </div>
+
+    <div class="explore-footer">
+      <button onclick="clearExploreWaypoints()" class="btn btn-sm" style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-muted)">
+        <i class="fas fa-trash me-1"></i>Effacer
+      </button>
+      <button onclick="saveExploreRoute()" class="btn btn-primary ms-auto fw-bold" style="border-radius:20px;padding:.45rem 1.5rem">
+        <i class="fas fa-save me-2"></i>Rejoindre pour sauvegarder
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal: capturer l'email pour sauvegarder la route -->
+  <div class="modal fade" id="modalSaveExplore" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:380px">
+      <div class="modal-content" style="background:var(--bg-card);border:1px solid var(--border)">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold"><i class="fas fa-route text-primary me-2"></i>Sauvegarder mon itinéraire</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body pt-2">
+          <p class="text-muted small mb-3">Crée un compte pour sauvegarder cette sortie et la partager avec les membres du club.</p>
+          <div class="mb-2">
+            <input type="text" id="exploreSavePseudo" class="form-control" placeholder="Ton pseudo / surnom *" autocomplete="nickname">
+          </div>
+          <div class="mb-3">
+            <input type="email" id="exploreSaveEmail" class="form-control" placeholder="Ton email *" autocomplete="email" inputmode="email">
+          </div>
+          <div class="alert alert-danger d-none mb-2" id="exploreSaveError"></div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-primary w-100 fw-bold" onclick="goRegisterWithRoute()">
+            <i class="fas fa-user-plus me-2"></i>Créer mon compte
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -961,11 +1067,32 @@
     </div>
   </div>
 
+  <!-- ═══ MOBILE BOTTOM NAV ═══════════════════════════════════ -->
+  <nav class="mobile-nav" id="mobileNav" aria-label="Navigation mobile">
+    <a href="#" class="mnav-item" id="mnav-dashboard" onclick="showPage('dashboard');return false">
+      <i class="fas fa-home"></i><span>Accueil</span>
+    </a>
+    <a href="#" class="mnav-item" id="mnav-sorties" onclick="showPage('sorties');return false">
+      <i class="fas fa-road"></i><span>Sorties</span>
+    </a>
+    <a href="#" class="mnav-item mnav-create" id="mnav-create-sortie" onclick="showPage('create-sortie');return false" aria-label="Organiser">
+      <i class="fas fa-plus"></i>
+    </a>
+    <a href="#" class="mnav-item" id="mnav-notifications" onclick="showPage('notifications');return false">
+      <i class="fas fa-bell"></i>
+      <span class="mnav-badge" id="mnav-notif-badge" style="display:none">0</span>
+      <span>Notifs</span>
+    </a>
+    <a href="#" class="mnav-item" id="mnav-profile" onclick="showPage('profile');return false">
+      <i class="fas fa-user"></i><span>Profil</span>
+    </a>
+  </nav>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
-  <script src="/js/app.js?v=6"></script>
-  <script src="/js/map.js?v=3"></script>
+  <script src="/js/app.js?v=7"></script>
+  <script src="/js/map.js?v=4"></script>
   <script src="/js/sorties.js?v=5"></script>
   <script src="/js/admin.js?v=5"></script>
   <script src="/js/dashboard.js?v=2"></script>
