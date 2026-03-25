@@ -1311,13 +1311,15 @@ a:hover { color: #fff; }
 #explore-map {
   flex: 1;
   min-height: 0;
+  /* Espace sous la carte pour le CTA flottant */
+  margin-bottom: 0;
 }
 .explore-wp-list {
-  max-height: 150px;
+  max-height: 130px;
   overflow-y: auto;
   background: var(--bg-card);
   border-top: 1px solid var(--border);
-  padding: .5rem .75rem;
+  padding: .4rem .75rem .4rem;
   flex-shrink: 0;
 }
 .explore-wp-list .wp-item {
@@ -1329,15 +1331,50 @@ a:hover { color: #fff; }
   border-bottom: 1px solid var(--border);
 }
 .explore-wp-list .wp-item:last-child { border-bottom: none; }
-.explore-footer {
-  padding: .65rem 1rem;
-  background: rgba(13,13,13,.97);
+
+/* CTA flottant — toujours visible en bas de la page explore */
+.explore-cta-float {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 200;
+  padding: .75rem 1rem calc(.75rem + env(safe-area-inset-bottom, 0px));
+  background: rgba(13,13,13,.96);
   border-top: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
-  align-items: center;
-  gap: .75rem;
-  flex-shrink: 0;
+  flex-direction: column;
+  gap: .5rem;
 }
+.explore-cta-float .btn-cta-primary {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: .65rem 1rem;
+  font-weight: 700;
+  font-size: .9rem;
+  width: 100%;
+  min-height: 46px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.explore-cta-float .btn-cta-primary:hover { background: var(--primary-dark); }
+.explore-cta-float .btn-cta-secondary {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: .45rem 1rem;
+  font-size: .8rem;
+  width: 100%;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.explore-cta-float .btn-cta-secondary:hover { color: #fff; border-color: #555; }
+
+/* Décalage du bas de la page pour ne pas cacher le contenu */
+#page-explore { padding-bottom: 130px; }
 
 /* ============================================================
    RESPONSIVE

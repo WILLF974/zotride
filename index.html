@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-  <link rel="stylesheet" href="/css/style.css?v=13">
+  <link rel="stylesheet" href="/css/style.css?v=14">
 </head>
 <body>
 
@@ -292,7 +292,7 @@
   <!-- ═══ PAGE : EXPLORER (pre-auth itinéraire) ═══════════════ -->
   <div class="auth-page d-none" id="page-explore">
     <div class="explore-header">
-      <button onclick="showPage('login')" class="btn btn-sm p-0" style="background:transparent;color:var(--text-muted);font-size:1.1rem;min-height:auto" aria-label="Retour">
+      <button onclick="showPage('landing')" class="btn btn-sm p-0" style="background:transparent;color:var(--text-muted);font-size:1.1rem;min-height:auto" aria-label="Retour">
         <i class="fas fa-arrow-left"></i>
       </button>
       <span class="fw-bold" style="font-size:1rem">Tracer mon itinéraire</span>
@@ -317,13 +317,19 @@
       <p class="text-muted small mb-0">Clique sur la carte pour ajouter des étapes</p>
     </div>
 
-    <div class="explore-footer">
-      <button onclick="clearExploreWaypoints()" class="btn btn-sm" style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-muted)">
-        <i class="fas fa-trash me-1"></i>Effacer
+    <!-- CTA flottant : toujours visible en bas d'écran -->
+    <div class="explore-cta-float">
+      <button class="btn-cta-primary" onclick="saveExploreRoute()">
+        <i class="fas fa-user-plus me-2"></i>Créer un compte gratuit
       </button>
-      <button onclick="saveExploreRoute()" class="btn btn-primary ms-auto fw-bold" style="border-radius:20px;padding:.45rem 1.5rem">
-        <i class="fas fa-save me-2"></i>Rejoindre pour sauvegarder
-      </button>
+      <div style="display:flex;align-items:center;gap:.5rem">
+        <button class="btn-cta-secondary" onclick="clearExploreWaypoints()" style="flex:0 0 auto;width:auto;padding:.45rem .85rem">
+          <i class="fas fa-trash"></i>
+        </button>
+        <button class="btn-cta-secondary" style="flex:1" onclick="saveExploreRoute()">
+          <i class="fas fa-save me-1"></i>Sauvegarder l'itinéraire
+        </button>
+      </div>
     </div>
   </div>
 
