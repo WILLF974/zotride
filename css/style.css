@@ -411,21 +411,7 @@ a:hover { color: #fff; }
    MAP FULLSCREEN
    ============================================================ */
 
-.map-fs-ctrl {
-  background: rgba(26,26,26,0.92);
-  border: 1px solid #555 !important;
-  color: #ddd;
-  border-radius: 6px !important;
-  width: 36px;
-  height: 36px;
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0,0,0,.5);
-  padding: 0;
-}
-.map-fs-ctrl:hover { background: rgba(45,45,45,0.98); color: #fff; }
+#map-fullscreen-btn:hover { background: rgba(45,45,45,0.98) !important; color: #fff !important; }
 
 /* ============================================================
    MAP SEARCH BAR

@@ -28,21 +28,14 @@ function initCreateMap() {
     createMap.on('click', e => addWaypoint(e.latlng.lat, e.latlng.lng));
     renderWpList();
 
-    // Bouton plein écran ajouté comme contrôle Leaflet natif
-    // (garantit que le clic n'est pas intercepté par la carte)
-    const FsControl = L.Control.extend({
-      options: { position: 'topright' },
-      onAdd: function () {
-        const btn = L.DomUtil.create('button', 'map-fs-ctrl');
-        btn.id        = 'map-fullscreen-btn';
-        btn.title     = 'Plein écran';
-        btn.innerHTML = '<i class="fas fa-expand" id="map-fullscreen-icon"></i>';
-        L.DomEvent.disableClickPropagation(btn);
-        L.DomEvent.on(btn, 'click', toggleCreateMapFullscreen);
-        return btn;
-      }
-    });
-    new FsControl().addTo(createMap);
+    // Attacher le clic via addEventListener (plus fiable que onclick HTML)
+    const fsBtn = document.getElementById('map-fullscreen-btn');
+    if (fsBtn) {
+      fsBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleCreateMapFullscreen();
+      });
+    }
   }, 120);
 }
 
@@ -144,48 +137,47 @@ function renderWpList() {
 function getWaypoints() { return waypoints; }
 
 // ── Plein écran carte création ────────────────────────────────
-// Approche DOM transplant : universelle (iOS Safari inclus)
 function toggleCreateMapFullscreen() {
-  const wrapper = document.getElementById('create-map-wrapper');
-  const icon    = document.getElementById('map-fullscreen-icon');
-  const btn     = document.getElementById('map-fullscreen-btn');
-  if (!wrapper) return;
+  const container = document.getElementById('create-map-container');
+  const icon      = document.getElementById('map-fullscreen-icon');
+  const btn       = document.getElementById('map-fullscreen-btn');
+  if (!container) return;
 
-  if (!wrapper._fsActive) {
-    // Mémoriser la position d'origine
-    wrapper._fsParent    = wrapper.parentNode;
-    wrapper._fsNext      = wrapper.nextSibling;
-    wrapper._fsOrigStyle = wrapper.getAttribute('style') || '';
+  if (!container._fsActive) {
+    container._fsParent    = container.parentNode;
+    container._fsNext      = container.nextSibling;
+    container._fsOrigStyle = container.getAttribute('style') || '';
 
-    // Déplacer dans body et appliquer le plein écran
-    document.body.appendChild(wrapper);
-    wrapper.style.cssText = [
-      'position:fixed', 'top:0', 'left:0',
-      'width:100vw', 'height:100vh',
-      'z-index:9999', 'border-radius:0'
-    ].join(';');
-    wrapper._fsActive = true;
+    document.body.appendChild(container);
+    container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;';
 
+    // La carte doit remplir le nouveau container
+    const wrapper = document.getElementById('create-map-wrapper');
+    if (wrapper) wrapper.style.cssText = 'height:100%;border-radius:0;overflow:hidden;';
+
+    container._fsActive = true;
     if (icon) icon.className = 'fas fa-compress';
     if (btn)  btn.title      = 'Quitter le plein écran';
   } else {
-    // Remettre à sa place d'origine
-    wrapper._fsParent.insertBefore(wrapper, wrapper._fsNext || null);
-    wrapper.setAttribute('style', wrapper._fsOrigStyle);
-    wrapper._fsActive = false;
+    container._fsParent.insertBefore(container, container._fsNext || null);
+    container.setAttribute('style', container._fsOrigStyle);
 
+    const wrapper = document.getElementById('create-map-wrapper');
+    if (wrapper) wrapper.style.cssText = 'height:100%;border-radius:10px;overflow:hidden;';
+
+    container._fsActive = false;
     if (icon) icon.className = 'fas fa-expand';
     if (btn)  btn.title      = 'Plein écran';
   }
 
-  setTimeout(() => { if (createMap) createMap.invalidateSize(); }, 100);
+  setTimeout(() => { if (createMap) createMap.invalidateSize(true); }, 150);
 }
 
-// Touche Échap pour quitter le plein écran
+// Touche Échap
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    const wrapper = document.getElementById('create-map-wrapper');
-    if (wrapper && wrapper._fsActive) toggleCreateMapFullscreen();
+    const c = document.getElementById('create-map-container');
+    if (c && c._fsActive) toggleCreateMapFullscreen();
   }
 });
 

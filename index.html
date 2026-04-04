@@ -824,8 +824,15 @@
             </p>
             <div id="waypoints-list"></div>
           </div>
-          <div id="create-map-wrapper" style="position:relative;height:420px;border-radius:10px;">
-            <div id="create-map" style="height:100%;border-radius:10px;overflow:hidden"></div>
+          <div id="create-map-container" style="position:relative;height:420px;">
+            <div id="create-map-wrapper" style="height:100%;border-radius:10px;overflow:hidden;">
+              <div id="create-map" style="height:100%"></div>
+            </div>
+            <button id="map-fullscreen-btn"
+              style="position:absolute;top:10px;right:10px;z-index:2000;background:rgba(26,26,26,0.92);border:1px solid #555;color:#ddd;border-radius:6px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.5);"
+              title="Plein écran">
+              <i class="fas fa-expand" id="map-fullscreen-icon"></i>
+            </button>
           </div>
         </div>
       </div>
