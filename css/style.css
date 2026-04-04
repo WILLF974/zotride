@@ -408,6 +408,24 @@ a:hover { color: #fff; }
 .toast { background: #222 !important; border: 1px solid var(--border) !important; min-width: 240px; }
 
 /* ============================================================
+   MAP FULLSCREEN
+   ============================================================ */
+#create-map-wrapper.map-is-fullscreen {
+  position: fixed !important;
+  top: 0; left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  border-radius: 0 !important;
+  z-index: 9999;
+}
+
+#map-fullscreen-btn:hover {
+  background: #2a2a2a !important;
+  color: #fff !important;
+}
+
+/* ============================================================
    MAP SEARCH BAR
    ============================================================ */
 .map-search-bar { position: relative; }

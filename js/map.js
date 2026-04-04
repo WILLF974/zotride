@@ -127,12 +127,46 @@ function renderWpList() {
 
 function getWaypoints() { return waypoints; }
 
+// ── Plein écran carte création ────────────────────────────────
+function toggleCreateMapFullscreen() {
+  const wrapper = document.getElementById('create-map-wrapper');
+  const icon    = document.getElementById('map-fullscreen-icon');
+  const btn     = document.getElementById('map-fullscreen-btn');
+  if (!wrapper) return;
+
+  const isFs = wrapper.classList.toggle('map-is-fullscreen');
+  icon.className = isFs ? 'fas fa-compress' : 'fas fa-expand';
+  btn.title      = isFs ? 'Quitter le plein écran' : 'Plein écran';
+
+  // Laisser le browser repeindre avant d'invalider la taille Leaflet
+  setTimeout(() => { if (createMap) createMap.invalidateSize(); }, 50);
+}
+
+// Quitter le plein écran avec Echap
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const wrapper = document.getElementById('create-map-wrapper');
+    if (wrapper && wrapper.classList.contains('map-is-fullscreen')) {
+      toggleCreateMapFullscreen();
+    }
+  }
+});
+
 // ── Recherche de ville (Nominatim / OSM) ──────────────────────
-async function searchCity() {
+let _citySearchTimer = null;
+function searchCity() {
+  clearTimeout(_citySearchTimer);
   const input   = document.getElementById('citySearch');
   const results = document.getElementById('cityResults');
-  const query   = input.value.trim();
-  if (!query) return;
+  const query   = input ? input.value.trim() : '';
+  if (!query) { if (results) results.classList.add('d-none'); return; }
+  if (query.length < 3) return;
+  _citySearchTimer = setTimeout(() => _doSearchCity(query), 400);
+}
+
+async function _doSearchCity(query) {
+  const results = document.getElementById('cityResults');
+  if (!results) return;
 
   results.innerHTML = '<div class="city-result-searching"><i class="fas fa-spinner fa-spin me-2"></i>Recherche…</div>';
   results.classList.remove('d-none');
@@ -147,7 +181,7 @@ async function searchCity() {
       return;
     }
 
-    results.innerHTML = data.map((item, i) => `
+    results.innerHTML = data.map(item => `
       <div class="city-result-item" onclick="selectCity(${item.lat}, ${item.lon}, '${sanitize(item.display_name).replace(/'/g, '&#39;')}')">
         <i class="fas fa-map-marker-alt"></i>
         <span>${sanitize(item.display_name)}</span>
@@ -157,6 +191,7 @@ async function searchCity() {
     results.innerHTML = '<div class="city-result-searching text-danger">Erreur de recherche</div>';
   }
 }
+
 
 function selectCity(lat, lng, label) {
   const results = document.getElementById('cityResults');

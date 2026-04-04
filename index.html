@@ -799,11 +799,13 @@
               </div>
               <div class="mb-3">
                 <label class="form-label small">Rechercher une ville</label>
-                <div class="d-flex gap-2">
-                  <input type="text" id="geocodeInput" class="form-control" placeholder="Saint-Denis, Cilaos…">
-                  <button type="button" class="btn btn-outline-secondary" onclick="geocodeCity()">
-                    <i class="fas fa-search"></i>
-                  </button>
+                <div class="map-search-bar">
+                  <div class="input-group">
+                    <span class="input-group-text map-search-icon"><i class="fas fa-search"></i></span>
+                    <input type="text" id="citySearch" class="form-control" placeholder="Saint-Denis, Cilaos…"
+                      oninput="searchCity()" onkeydown="if(event.key==='Enter'){event.preventDefault();searchCity()}">
+                  </div>
+                  <div id="cityResults" class="city-results d-none"></div>
                 </div>
               </div>
               <div class="alert alert-danger d-none mb-3" id="sortieError"></div>
@@ -822,8 +824,12 @@
             </p>
             <div id="waypoints-list"></div>
           </div>
-          <div style="height:420px;border-radius:10px;overflow:hidden">
-            <div id="create-map" style="height:100%"></div>
+          <div id="create-map-wrapper" style="position:relative;height:420px;border-radius:10px;">
+            <div id="create-map" style="height:100%;border-radius:10px;overflow:hidden"></div>
+            <button id="map-fullscreen-btn" onclick="toggleCreateMapFullscreen()" title="Plein écran"
+              style="position:absolute;top:10px;right:10px;z-index:9999;background:rgba(26,26,26,0.9);border:1px solid #555;color:#ddd;border-radius:6px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s;box-shadow:0 2px 6px rgba(0,0,0,.5)">
+              <i class="fas fa-expand" id="map-fullscreen-icon"></i>
+            </button>
           </div>
         </div>
       </div>
