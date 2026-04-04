@@ -410,19 +410,6 @@ a:hover { color: #fff; }
 /* ============================================================
    MAP FULLSCREEN
    ============================================================ */
-/* Quand le wrapper est en plein écran natif */
-#create-map-wrapper:fullscreen,
-#create-map-wrapper:-webkit-full-screen {
-  width: 100vw;
-  height: 100vh;
-  border-radius: 0;
-}
-
-#create-map-wrapper:fullscreen #create-map,
-#create-map-wrapper:-webkit-full-screen #create-map {
-  height: 100%;
-  border-radius: 0;
-}
 
 #map-fullscreen-btn:hover {
   background: #2a2a2a !important;

@@ -127,29 +127,50 @@ function renderWpList() {
 
 function getWaypoints() { return waypoints; }
 
-// ── Plein écran carte création (API native) ───────────────────
+// ── Plein écran carte création ────────────────────────────────
+// Approche DOM transplant : universelle (iOS Safari inclus)
 function toggleCreateMapFullscreen() {
   const wrapper = document.getElementById('create-map-wrapper');
+  const icon    = document.getElementById('map-fullscreen-icon');
+  const btn     = document.getElementById('map-fullscreen-btn');
   if (!wrapper) return;
 
-  if (!document.fullscreenElement) {
-    wrapper.requestFullscreen().catch(err => {
-      console.warn('Fullscreen refusé :', err);
-    });
+  if (!wrapper._fsActive) {
+    // Mémoriser la position d'origine
+    wrapper._fsParent    = wrapper.parentNode;
+    wrapper._fsNext      = wrapper.nextSibling;
+    wrapper._fsOrigStyle = wrapper.getAttribute('style') || '';
+
+    // Déplacer dans body et appliquer le plein écran
+    document.body.appendChild(wrapper);
+    wrapper.style.cssText = [
+      'position:fixed', 'top:0', 'left:0',
+      'width:100vw', 'height:100vh',
+      'z-index:9999', 'border-radius:0'
+    ].join(';');
+    wrapper._fsActive = true;
+
+    if (icon) icon.className = 'fas fa-compress';
+    if (btn)  btn.title      = 'Quitter le plein écran';
   } else {
-    document.exitFullscreen();
+    // Remettre à sa place d'origine
+    wrapper._fsParent.insertBefore(wrapper, wrapper._fsNext || null);
+    wrapper.setAttribute('style', wrapper._fsOrigStyle);
+    wrapper._fsActive = false;
+
+    if (icon) icon.className = 'fas fa-expand';
+    if (btn)  btn.title      = 'Plein écran';
   }
+
+  setTimeout(() => { if (createMap) createMap.invalidateSize(); }, 100);
 }
 
-// Sync icône/titre sur chaque changement d'état fullscreen
-document.addEventListener('fullscreenchange', () => {
-  const icon = document.getElementById('map-fullscreen-icon');
-  const btn  = document.getElementById('map-fullscreen-btn');
-  const isFs = !!document.fullscreenElement;
-  if (icon) icon.className = isFs ? 'fas fa-compress' : 'fas fa-expand';
-  if (btn)  btn.title      = isFs ? 'Quitter le plein écran' : 'Plein écran';
-  // Laisser le browser finir le layout avant d'invalider Leaflet
-  setTimeout(() => { if (createMap) createMap.invalidateSize(); }, 150);
+// Touche Échap pour quitter le plein écran
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const wrapper = document.getElementById('create-map-wrapper');
+    if (wrapper && wrapper._fsActive) toggleCreateMapFullscreen();
+  }
 });
 
 // ── Recherche de ville (Nominatim / OSM) ──────────────────────
