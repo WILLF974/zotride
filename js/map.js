@@ -27,6 +27,22 @@ function initCreateMap() {
     L.tileLayer(TILE_URL, { attribution: TILE_ATTR, maxZoom: 19 }).addTo(createMap);
     createMap.on('click', e => addWaypoint(e.latlng.lat, e.latlng.lng));
     renderWpList();
+
+    // Bouton plein écran ajouté comme contrôle Leaflet natif
+    // (garantit que le clic n'est pas intercepté par la carte)
+    const FsControl = L.Control.extend({
+      options: { position: 'topright' },
+      onAdd: function () {
+        const btn = L.DomUtil.create('button', 'map-fs-ctrl');
+        btn.id        = 'map-fullscreen-btn';
+        btn.title     = 'Plein écran';
+        btn.innerHTML = '<i class="fas fa-expand" id="map-fullscreen-icon"></i>';
+        L.DomEvent.disableClickPropagation(btn);
+        L.DomEvent.on(btn, 'click', toggleCreateMapFullscreen);
+        return btn;
+      }
+    });
+    new FsControl().addTo(createMap);
   }, 120);
 }
 
